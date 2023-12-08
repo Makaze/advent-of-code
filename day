@@ -1,0 +1,8 @@
+#!/bin/bash
+
+mkdir "$(date +%Y)/$1"
+cd "$(date +%Y)/$1"
+touch data.txt
+touch test.txt
+code "advent$1.py"
+cat ../../template.py >> "advent$1.py"
