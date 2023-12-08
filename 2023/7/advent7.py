@@ -13,10 +13,7 @@ class Hand:
     ]
     
     def __init__(self, cards: str, bid: int, part: int=1):
-        if part == 1:
-            self.card_values = list("23456789TJQKA")
-        else:
-            self.card_values = list("J23456789TQKA")
+        self.card_values = "23456789TJQKA" if part == 1 else "J23456789TQKA"
         
         self.part = part
         self.bid = bid
