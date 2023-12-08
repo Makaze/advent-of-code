@@ -1,22 +1,22 @@
 # Advent of Code 2023-12-07
-# @makaze 
+# @makaze
 
 class Hand:
     types = [
-        {"singles": 5, "uniques": 5},
-        {"singles": 3, "uniques": 4},
-        {"singles": 1, "uniques": 3},
-        {"singles": 2, "uniques": 3},
-        {"singles": 0, "uniques": 2},
-        {"singles": 1, "uniques": 2},
-        {"singles": 0, "uniques": 1}
+        {"singles": 5, "uniques": 5}, # Highcard
+        {"singles": 3, "uniques": 4}, # Pair
+        {"singles": 1, "uniques": 3}, # Two pair
+        {"singles": 2, "uniques": 3}, # Three of a kind
+        {"singles": 0, "uniques": 2}, # Full house
+        {"singles": 1, "uniques": 2}, # Four of a kind
+        {"singles": 0, "uniques": 1}  # Five of a kind
     ]
     
     def __init__(self, cards: str, bid: int, part: int=1):
         if part == 1:
-            self.card_values = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"]
+            self.card_values = list(["23456789TJQKA"])
         else:
-            self.card_values = ["J","2","3","4","5","6","7","8","9","T","Q","K","A"]
+            self.card_values = list(["J23456789TQKA"])
         
         self.part = part
         self.bid = bid
