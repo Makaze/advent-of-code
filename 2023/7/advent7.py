@@ -14,19 +14,15 @@ class Hand:
     
     def __init__(self, cards: str, bid: int, part: int=1):
         if part == 1:
-            self.card_values = list(["23456789TJQKA"])
+            self.card_values = list("23456789TJQKA")
         else:
-            self.card_values = list(["J23456789TQKA"])
+            self.card_values = list("J23456789TQKA")
         
         self.part = part
         self.bid = bid
-        self.letters = cards
-        self.cards = list(map(self.get_values, self.letters))
+        self.cards = [self.card_values.index(card) + 1 for card in cards]
         self.counts = {card: self.cards.count(card) for card in self.cards}
         self.type = self.get_type()
-        
-    def get_values(self, card: str) -> int:
-        return self.card_values.index(card) + 1
     
     def get_type(self) -> int:
         if self.part == 1:
