@@ -13,7 +13,7 @@ for line in lines:
     triangle = []
     while any(line):
         triangle.append(line)
-        line = [line[i] - line[i-1] for i in range(len(line)) if i > 0]
+        line = [line[i] - line[i-1] for i in range(1, len(line))]
         
     p1_next = p2_next = 0
     triangle.reverse()
