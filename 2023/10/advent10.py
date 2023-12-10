@@ -1,4 +1,4 @@
-# Advent of Code 2023-12-
+# Advent of Code 2023-12-10
 # @makaze
 
 from enum import IntFlag
