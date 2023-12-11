@@ -1,7 +1,10 @@
 # Advent of Code 2023-12-10
 # @makaze
 
+import colorama
 from enum import IntFlag
+
+colorama.init()
 
 DIR = IntFlag('Dir', ['NORTH', 'SOUTH', 'EAST', 'WEST'])
 PIPES = {
@@ -29,16 +32,22 @@ OPPOSITES = {
 }
 
 explored = set()
+outside = set()
 start = ()
-            
 
 def main():
-    # with open("test.txt") as f:
-    with open("data.txt") as f:
+    global outside
+    with open("test.txt") as f:
+    # with open("data.txt") as f:
         s = f.read().split("\n")
+        
+    outside |= {(0, x) for x in range(len(s[0]))} # top
+    outside |= {(len(s)-1, x) for x in range(len(s[0]))} # bottom
+    outside |= {(x, 0) for x in range(len(s))} # left
+    outside |= {(x, len(s[0])-1) for x in range(len(s))} # right
     
     print(f"Part 1:", p1(s))
-    print(f"Part 1:", p2(s))
+    print(f"Part 2:", p2(s))
             
 
 def p1(s):
@@ -102,10 +111,84 @@ def p1(s):
     
     return max_distance
 
+def highlight(s, sel):
+    y, x = sel
+    lit = s.copy()
+    lit[y] = lit[y][:x-(1 if x else 0)] + \
+        colorama.Fore.RED + lit[y][x] + colorama.Fore.RESET + \
+            lit[y][(x if x else x+1):]
+    
+    print()
+    
+    for line in lit:
+        print(line)
+
+
+def ray_trace(lines, point, loop):
+    if point in outside:
+        return False
+    
+    pipes_in_ray = filter(lambda x: x[0] == point[0] and x[1] <= point[1] \
+        and lines[x[0]][x[1]] != "-", loop)
+    
+    return len(pipes_in_ray) % 2 != 0
+
 
 def p2(s):
-    pass
-
+    global outside
+    global explored
+    
+    old = set()
+    wall = False
+    
+    while len(old) != len(outside):
+        old = outside.copy()
+        
+        for tile in old:
+            for dir, move in MOVES.items():
+                next_pos = tuple(map(sum, zip(move, tile)))
+                pipe_end = next_pos
+                wall = False
+                
+                while pipe_end in explored:
+                    char = s[pipe_end[0]][pipe_end[1]]
+                    pipe = PIPES[char]
+                    
+                    if (dir | OPPOSITES[dir]) & pipe == 0: # Pipe is perpendicular
+                        print(f"\nPipe is perpendicular at {pipe_end}: {dir=}, {char=}, {pipe=}")
+                        wall = True
+                        break
+                    # if dir & pipe == 0: # Pipe is facing out
+                    #     print(f"\nPipe is facing out: {dir=}, {char=}, {pipe=}")
+                    #     # break
+                    pipe_end = tuple(map(sum, zip(move, pipe_end)))
+                
+                # if pipe_str:
+                #     print(f"Pipe string:\n{pipe_str}")
+                
+                if pipe_end != next_pos and not wall:
+                    char = s[pipe_end[0]][pipe_end[1]]
+                    print(f"Jumped {dir=} from {next_pos} to {pipe_end}: {char}")
+                    next_pos = pipe_end
+                
+                if not (0 <= next_pos[0] < len(s)): # Not in y range
+                    continue
+                if not (0 <= next_pos[1] < len(s[0])): # Not in x range
+                    continue
+                
+                print(f"Next move:")
+                highlight(s, next_pos)
+                
+                outside.add(next_pos)
+        
+    outside |= explored
+    all_pos = {(y, x) for x in range(len(s[0])) for y in range(len(s))}
+    inside = all_pos - outside
+    inside, outside, all_pos = sorted(inside), sorted(outside), sorted(all_pos)
+    print(f"{all_pos=}\n{outside=}\n{inside=}")
+    
+    return len(inside)
+                
 
 if __name__ == "__main__":
     main()
