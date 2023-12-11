@@ -32,16 +32,14 @@ OPPOSITES = {
 }
 
 explored = set()
-outside = set()
 start = ()
-start_char = "S"
 allowed_pipes = ['|']
 allowed_pipes = [
     '|',
     'F', '7',
     'L', 'J',
+    'S'
 ]
-CORNERS = ['L', 'J', 'F', '7']
 
 def main():
     global outside
@@ -68,24 +66,14 @@ def p1(s):
     
     end, pos, distance, last_move = False, start, 0, (0,0)
     
-    moves_from_start = []
-    
     while end != start:
         curr_pipe = lines[pos[0]][pos[1]]
-        next_items = []
         explored.add(pos)
-        
-        if len(moves_from_start) == 2:
-            s_type = moves_from_start[0] | moves_from_start[1]
-            for key, val in PIPES.items():
-                if val == s_type:
-                    start_char = key
-            print(f"Found S pipe: {moves_from_start=}, {start_char=}")
         
         for dir, move in MOVES.items():
             next_pos = tuple(map(sum, zip(move, pos)))
             
-            if dir & curr_pipe == 0:
+            if dir & curr_pipe == 0: # Pipe doesn't go that direction
                 continue
             if not (0 <= next_pos[0] < len(lines)): # Not in y range
                 continue
@@ -105,8 +93,6 @@ def p1(s):
                 continue
             else:
                 pos, distance, last_move = next_pos, distance + 1, move
-                if len(moves_from_start) < 2:
-                    moves_from_start.append(dir)
                 break
         
     if end == start:
@@ -128,46 +114,33 @@ def highlight(s, sel):
 
 
 def p2(s):
-    global outside
     global explored
     global start
-    global start_char
     
     inside = set()
-    last_corner = None
+    last = None
     
     for y, line in enumerate(s):
         pipe_count = 0
         for x, char in enumerate(line):
             point = (y, x)
-            if point in explored:
-                if point == start:
-                    char = start_char
-                if char in allowed_pipes:
-                    if char in CORNERS:
-                        # print(f"{point=}, {last_corner=}, {PIPES[char]=}")
-                        if not last_corner:
-                            last_corner = DIR.NORTH if PIPES[char] & DIR.NORTH else DIR.SOUTH
-                        elif PIPES[char] & OPPOSITES[last_corner]:
-                            pipe_count += 1
-                            last_corner = None
-                        else:
-                            last_corner = None
-                        if y == 18:
-                            print(f"Corner: {char}, {pipe_count=}")
-                    else:
-                        pipe_count += 1
-                        last_corner = None
-        
             line = list(line)
+            
+            if point in explored:
+                line[x] = colorama.Fore.GREEN + line[x] + colorama.Fore.RESET
+                if char in allowed_pipes:
+                    if not last or PIPES[char] & last:
+                        pipe_count += 1
+                        last = DIR.NORTH if PIPES[char] & DIR.NORTH else DIR.SOUTH
+                continue
             
             if pipe_count % 2 != 0:
                 inside.add(point)
-                line[x] = colorama.Fore.RED + '.' + colorama.Fore.RESET
+                line[x] = colorama.Fore.RED + '\033[1m' + 'I' + '\033[0m' + colorama.Fore.RESET
             else:
-                line[x] = '.'
+                line[x] = 'O'
             
-        print("".join(line) + f" {pipe_count}")
+        print("".join(line))
                 
     return len(inside)
                 
