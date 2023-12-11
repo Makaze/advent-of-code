@@ -35,17 +35,19 @@ explored = set()
 outside = set()
 start = ()
 start_char = "S"
+allowed_pipes = ['|']
+allowed_pipes = [
+    '|',
+    'F', '7',
+    'L', 'J',
+]
+CORNERS = ['L', 'J', 'F', '7']
 
 def main():
     global outside
     # with open("test.txt") as f:
     with open("data.txt") as f:
         s = f.read().split("\n")
-        
-    outside |= {(0, x) for x in range(len(s[0]))} # top
-    outside |= {(len(s)-1, x) for x in range(len(s[0]))} # bottom
-    outside |= {(x, 0) for x in range(len(s))} # left
-    outside |= {(x, len(s[0])-1) for x in range(len(s))} # right
     
     print(f"Part 1:", p1(s))
     print(f"Part 2:", p2(s))
@@ -71,10 +73,6 @@ def p1(s):
     while end != start:
         curr_pipe = lines[pos[0]][pos[1]]
         next_items = []
-        
-        # print()
-
-        # print(f"On a new pipe: {pos=}, {curr_pipe=}, DISTANCE: {distance}\n")
         explored.add(pos)
         
         if len(moves_from_start) == 2:
@@ -82,38 +80,30 @@ def p1(s):
             for key, val in PIPES.items():
                 if val == s_type:
                     start_char = key
+            print(f"Found S pipe: {moves_from_start=}, {start_char=}")
         
         for dir, move in MOVES.items():
             next_pos = tuple(map(sum, zip(move, pos)))
             
-            # # print(f"{explored=}, {start=}, {next_pos=}, {next_pipe=}")
             if dir & curr_pipe == 0:
-                # print(f"Invalid direction: {dir=}, {CHARS[curr_pipe]=}")
                 continue
             if not (0 <= next_pos[0] < len(lines)): # Not in y range
-                # print(f"Not in Y range: {dir=}, {pos=}, {next_pos=}")
                 continue
             if not (0 <= next_pos[1] < len(lines[0])): # Not in x range
-                # print(f"Not in X range: {dir=}, {pos=}, {next_pos=}")
                 continue
             
             next_pipe = lines[next_pos[0]][next_pos[1]]
             
             if tuple(map(sum, zip(move, last_move))) == (0, 0): # Going backwards
-                # print(f"Going backwards: {dir=}, {pos=}, {next_pos=}, {move=}, {last_move=}")
                 continue
             if OPPOSITES[dir] & next_pipe == 0: # Next pipe doesn't attach
-                # print(f"\nDoesn't attach: {dir=}, {CHARS[next_pipe]=}, {pos=}, {next_pos=}, {next_pipe=}, {OPPOSITES[dir]=}")
                 continue
             if next_pos == start and distance > 0:
-                # print(f"\nFound start!")
                 end, distance = start, distance + 1
                 break
             if next_pos in explored:
                 continue
             else:
-                # print(f"\nAttached! {dir=}, {CHARS[next_pipe]=}, {pos=}, {next_pos=}, {next_pipe=}, {OPPOSITES[dir]=}")
-                # print(f"Moving on...")
                 pos, distance, last_move = next_pos, distance + 1, move
                 if len(moves_from_start) < 2:
                     moves_from_start.append(dir)
@@ -144,7 +134,7 @@ def p2(s):
     global start_char
     
     inside = set()
-    allowed_pipes = ['F', '|', 'J']
+    last_corner = None
     
     for y, line in enumerate(s):
         pipe_count = 0
@@ -154,16 +144,30 @@ def p2(s):
                 if point == start:
                     char = start_char
                 if char in allowed_pipes:
-                    pipe_count += 1
-                continue
+                    if char in CORNERS:
+                        # print(f"{point=}, {last_corner=}, {PIPES[char]=}")
+                        if not last_corner:
+                            last_corner = DIR.NORTH if PIPES[char] & DIR.NORTH else DIR.SOUTH
+                        elif PIPES[char] & OPPOSITES[last_corner]:
+                            pipe_count += 1
+                            last_corner = None
+                        else:
+                            last_corner = None
+                        if y == 18:
+                            print(f"Corner: {char}, {pipe_count=}")
+                    else:
+                        pipe_count += 1
+                        last_corner = None
         
             line = list(line)
-            line[x] = '.'
             
             if pipe_count % 2 != 0:
                 inside.add(point)
+                line[x] = colorama.Fore.RED + '.' + colorama.Fore.RESET
+            else:
+                line[x] = '.'
             
-        print("".join(line))
+        print("".join(line) + f" {pipe_count}")
                 
     return len(inside)
                 
