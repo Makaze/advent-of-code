@@ -34,11 +34,12 @@ OPPOSITES = {
 explored = set()
 outside = set()
 start = ()
+start_char = "S"
 
 def main():
     global outside
-    with open("test.txt") as f:
-    # with open("data.txt") as f:
+    # with open("test.txt") as f:
+    with open("data.txt") as f:
         s = f.read().split("\n")
         
     outside |= {(0, x) for x in range(len(s[0]))} # top
@@ -53,6 +54,7 @@ def main():
 def p1(s):
     global start
     global explored
+    global start_char
     
     lines = []
     max_distance = 0
@@ -63,6 +65,9 @@ def p1(s):
         lines.append(list(map(lambda x: PIPES[x], line)))
     
     end, pos, distance, last_move = False, start, 0, (0,0)
+    
+    moves_from_start = []
+    
     while end != start:
         curr_pipe = lines[pos[0]][pos[1]]
         next_items = []
@@ -71,6 +76,12 @@ def p1(s):
 
         # print(f"On a new pipe: {pos=}, {curr_pipe=}, DISTANCE: {distance}\n")
         explored.add(pos)
+        
+        if len(moves_from_start) == 2:
+            s_type = moves_from_start[0] | moves_from_start[1]
+            for key, val in PIPES.items():
+                if val == s_type:
+                    start_char = key
         
         for dir, move in MOVES.items():
             next_pos = tuple(map(sum, zip(move, pos)))
@@ -104,6 +115,8 @@ def p1(s):
                 # print(f"\nAttached! {dir=}, {CHARS[next_pipe]=}, {pos=}, {next_pos=}, {next_pipe=}, {OPPOSITES[dir]=}")
                 # print(f"Moving on...")
                 pos, distance, last_move = next_pos, distance + 1, move
+                if len(moves_from_start) < 2:
+                    moves_from_start.append(dir)
                 break
         
     if end == start:
@@ -124,69 +137,34 @@ def highlight(s, sel):
         print(line)
 
 
-def ray_trace(lines, point, loop):
-    if point in outside:
-        return False
-    
-    pipes_in_ray = filter(lambda x: x[0] == point[0] and x[1] <= point[1] \
-        and lines[x[0]][x[1]] != "-", loop)
-    
-    return len(pipes_in_ray) % 2 != 0
-
-
 def p2(s):
     global outside
     global explored
+    global start
+    global start_char
     
-    old = set()
-    wall = False
+    inside = set()
+    allowed_pipes = ['F', '|', 'J']
     
-    while len(old) != len(outside):
-        old = outside.copy()
+    for y, line in enumerate(s):
+        pipe_count = 0
+        for x, char in enumerate(line):
+            point = (y, x)
+            if point in explored:
+                if point == start:
+                    char = start_char
+                if char in allowed_pipes:
+                    pipe_count += 1
+                continue
         
-        for tile in old:
-            for dir, move in MOVES.items():
-                next_pos = tuple(map(sum, zip(move, tile)))
-                pipe_end = next_pos
-                wall = False
+            line = list(line)
+            line[x] = '.'
+            
+            if pipe_count % 2 != 0:
+                inside.add(point)
+            
+        print("".join(line))
                 
-                while pipe_end in explored:
-                    char = s[pipe_end[0]][pipe_end[1]]
-                    pipe = PIPES[char]
-                    
-                    if (dir | OPPOSITES[dir]) & pipe == 0: # Pipe is perpendicular
-                        print(f"\nPipe is perpendicular at {pipe_end}: {dir=}, {char=}, {pipe=}")
-                        wall = True
-                        break
-                    # if dir & pipe == 0: # Pipe is facing out
-                    #     print(f"\nPipe is facing out: {dir=}, {char=}, {pipe=}")
-                    #     # break
-                    pipe_end = tuple(map(sum, zip(move, pipe_end)))
-                
-                # if pipe_str:
-                #     print(f"Pipe string:\n{pipe_str}")
-                
-                if pipe_end != next_pos and not wall:
-                    char = s[pipe_end[0]][pipe_end[1]]
-                    print(f"Jumped {dir=} from {next_pos} to {pipe_end}: {char}")
-                    next_pos = pipe_end
-                
-                if not (0 <= next_pos[0] < len(s)): # Not in y range
-                    continue
-                if not (0 <= next_pos[1] < len(s[0])): # Not in x range
-                    continue
-                
-                print(f"Next move:")
-                highlight(s, next_pos)
-                
-                outside.add(next_pos)
-        
-    outside |= explored
-    all_pos = {(y, x) for x in range(len(s[0])) for y in range(len(s))}
-    inside = all_pos - outside
-    inside, outside, all_pos = sorted(inside), sorted(outside), sorted(all_pos)
-    print(f"{all_pos=}\n{outside=}\n{inside=}")
-    
     return len(inside)
                 
 
