@@ -12,9 +12,16 @@ def main():
 def transpose(lst: iter) -> list:
     return list(map(list, zip(*lst)))
 
+def shift(line, shifted, multiplier):
+    if all(c == '.' for c in line):
+        shifted.append(shifted[-1] + multiplier)
+    return shifted[-1]
+
+# Keeping this here for proof of concept & memory
+_shift = lambda l, s, M: (s[-1] + M if not s.append(s[-1] + M) else None) if all(c == '.' for c in l) else s[-1]
+
 def solve(lines, multiplier):
     y_shift, x_shift, multiplier = [0], [0], multiplier - 1
-    shift = lambda line, shifted, multiplier: (shifted[-1] + multiplier if not shifted.append(shifted[-1] + multiplier) else None) if all(c == '.' for c in line) else shifted[-1]
     _y = [shift(line, y_shift, multiplier) for line in lines]
     _x = [shift(line, x_shift, multiplier) for line in transpose(lines)] # Transposed
     galaxies = [(_y[y] + y, _x[x] + x) for y, line in enumerate(lines) for x, char in enumerate(line) if char == '#']
