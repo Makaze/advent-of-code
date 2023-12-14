@@ -3,8 +3,9 @@
 
 
 def main():
-    # with open("test.txt") as f:
-    with open("data.txt") as f:
+    file = "test.txt"
+    # file = "data.txt"
+    with open(file) as f:
         s = f.read().split("\n")
 
     print(f"Part 1:", p1(s))
