@@ -16,10 +16,6 @@ def main():
     print(f"Part 2:", solve(s, True))
 
 
-def transpose(lst):
-    return [list(x) for x in zip(*lst)]
-
-
 def print_mirror(lines, pos, t):
     lines = lines if t == "rows" else list(map(lambda x: "".join(x), transpose(lines)))
 
@@ -36,6 +32,28 @@ def print_mirror(lines, pos, t):
                 print(colorama.Fore.RED + ("-" * len(line)) + colorama.Fore.RESET)
 
     print(f"\nFrom {pos+1}-{pos+2}\n")
+
+
+def transpose(lst):
+    return [list(x) for x in zip(*lst)]
+
+
+def bin_diff(a, b):
+    a = (
+        int("".join([str(x).replace("#", "1").replace(".", "0") for x in a]), 2)
+        if type(a) is not int
+        else a
+    )
+    b = (
+        int("".join([str(x).replace("#", "1").replace(".", "0") for x in b]), 2)
+        if type(b) is not int
+        else b
+    )
+    count = 0
+    for i in range(32):  # Length of int
+        if ((a >> i) & 1) != ((b >> i) & 1):  # Check if bit i is mismatched
+            count += 1
+    return count
 
 
 def mirror(lines, t="rows", smudged=False):
@@ -64,24 +82,6 @@ def mirror(lines, t="rows", smudged=False):
                 return 0
             return pos + 1
     return 0
-
-
-def bin_diff(a, b):
-    a = (
-        int("".join([str(x).replace("#", "1").replace(".", "0") for x in a]), 2)
-        if type(a) is not int
-        else a
-    )
-    b = (
-        int("".join([str(x).replace("#", "1").replace(".", "0") for x in b]), 2)
-        if type(b) is not int
-        else b
-    )
-    count = 0
-    for i in range(32):  # Length of int
-        if ((a >> i) & 1) != ((b >> i) & 1):  # Check if bit i is mismatched
-            count += 1
-    return count
 
 
 def solve(patterns, smudged=False):
