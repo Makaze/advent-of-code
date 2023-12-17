@@ -1,6 +1,10 @@
 # Advent of Code 2023-12-
 # @makaze
 
+from icecream import ic
+
+ic.configureOutput(includeContext=True)
+
 
 def main():
     file = "test.txt"
@@ -8,15 +12,26 @@ def main():
     with open(file) as f:
         s = f.read().split("\n")
 
-    print(f"Part 1:", p1(s))
-    print(f"Part 2:", p2(s))
+    ic(part1(s))
+    ic(part2(s))
 
 
-def p1(s):
+def transpose(lst):
+    return [list(x) for x in zip(*lst)]
+
+
+def rotate(lst, n=1):
+    a = lst[:]
+    for _ in range(n):
+        a = transpose(a)[::-1]
+    return a
+
+
+def part1(s):
     pass
 
 
-def p2(s):
+def part2(s):
     pass
 
 
