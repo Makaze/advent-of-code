@@ -17,7 +17,7 @@ def main():
 
 
 def print_mirror(lines, pos, t):
-    lines = lines if t == "rows" else list(map(lambda x: "".join(x), transpose(lines)))
+    lines = lines if t == "rows" else ["".join(x) for x in transpose(lines)]
 
     for y, line in enumerate(lines):
         if t == "columns":
@@ -35,7 +35,7 @@ def print_mirror(lines, pos, t):
 
 
 def transpose(lst):
-    return [list(x) for x in zip(*lst)]
+    return list(map(list, zip(*lst)))
 
 
 def bin_diff(a, b):

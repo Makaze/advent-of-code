@@ -17,7 +17,7 @@ def main():
 
 
 def transpose(lst):
-    return [list(x) for x in zip(*lst)]
+    return list(map(list, zip(*lst)))
 
 
 def rotate(lst, n=1):

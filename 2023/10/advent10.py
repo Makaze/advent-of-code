@@ -53,7 +53,7 @@ def p1(s):
         if "S" in line:
             start = (i, line.index("S"))
             explored.add(start)
-        lines.append(list(map(lambda x: PIPES[x], line)))
+        lines.append([PIPES[x] for x in line])
 
     end, pos, distance, last_move = False, start, 0, (0, 0)
 
