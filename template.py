@@ -17,13 +17,19 @@ def main():
 
 
 def transpose(lst):
-    return list(map(list, zip(*lst)))
+    if type(lst[0]) is list:
+        return list(map(list, zip(*lst)))
+    else:
+        return ["".join(x) for x in zip(*lst)]
 
 
-def rotate(lst, n=1):
+def rotate(lst, n=1, clockwise=False):
     a = lst[:]
     for _ in range(n):
-        a = transpose(a)[::-1]
+        if clockwise:
+            a = transpose(a[::-1])
+        else:
+            a = transpose(a)[::-1]
     return a
 
 
