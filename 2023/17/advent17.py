@@ -41,7 +41,6 @@ def lowest_heat_loss(s, min_same_dir=1, max_same_dir=3):
         if n < max_same_dir and (dy, dx) != (0, 0):
             new_y = y + dy * new_n
             new_x = x + dx * new_n
-            ic(new_y, new_x, new_n)
 
             if 0 <= new_y < len(s) and 0 <= new_x < len(s[0]):
                 heappush(
