@@ -23,8 +23,7 @@ def lowest_heat_loss(s, min_same_dir=1, max_same_dir=3):
     explored = set()
 
     while frontier:
-        node = heappop(frontier)
-        heat_loss, y, x, dy, dx, n = node
+        heat_loss, y, x, dy, dx, n = heappop(frontier)
         # Heat loss, Current y, Current x, Change in y, Change in x, Number of steps in same direction
         state = (y, x, dy, dx, n)
 
