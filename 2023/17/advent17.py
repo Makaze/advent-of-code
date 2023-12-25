@@ -18,17 +18,15 @@ def main():
     ic(part2(s))
 
 
-def part1(s):
-    solution = None
-    frontier = [
-        (0, 0, 0, 0, 0, 0)
-    ]  # Heat loss, Current y, Current x, Change in y, Change in x, Prev steps in same dir
+def lowest_heat_loss(s, min_same_dir=1, max_same_dir=3):
+    frontier = [(0, 0, 0, 0, 0, 0)]
     explored = set()
 
     while frontier:
         node = heappop(frontier)
-        heat_loss, y, x, dy, dx, prev_dir = node
-        state = (y, x, dy, dx, prev_dir)
+        heat_loss, y, x, dy, dx, n = node
+        # Heat loss, Current y, Current x, Change in y, Change in x, Number of steps in same direction
+        state = (y, x, dy, dx, n)
 
         if (y, x) == (len(s) - 1, len(s[0]) - 1):
             return heat_loss
@@ -38,31 +36,42 @@ def part1(s):
 
         explored.add(state)
 
-        if prev_dir < 3 and (dy, dx) != (0, 0):
-            new_y = y + dy
-            new_x = x + dx
+        new_n = max(1, min_same_dir - n)
+
+        if n < max_same_dir and (dy, dx) != (0, 0):
+            new_y = y + dy * new_n
+            new_x = x + dx * new_n
+            ic(new_y, new_x, new_n)
 
             if 0 <= new_y < len(s) and 0 <= new_x < len(s[0]):
                 heappush(
                     frontier,
-                    (heat_loss + s[new_y][new_x], new_y, new_x, dy, dx, prev_dir + 1),
+                    (heat_loss + s[new_y][new_x], new_y, new_x, dy, dx, n + new_n),
                 )
 
         for new_dy, new_dx in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
             if (new_dy, new_dx) in [(dy, dx), (-dy, -dx)]:
                 continue
-            new_y = y + new_dy
-            new_x = x + new_dx
+            new_n = min_same_dir  # Reset to minimum for new direction
+            new_y = y + new_dy * new_n
+            new_x = x + new_dx * new_n
 
             if 0 <= new_y < len(s) and 0 <= new_x < len(s[0]):
+                new_loss = heat_loss + sum(
+                    s[y + new_dy * i][x + new_dx * i] for i in range(1, new_n + 1)
+                )
                 heappush(
                     frontier,
-                    (heat_loss + s[new_y][new_x], new_y, new_x, new_dy, new_dx, 1),
+                    (new_loss, new_y, new_x, new_dy, new_dx, min_same_dir),
                 )
 
 
+def part1(s):
+    return lowest_heat_loss(s)
+
+
 def part2(s):
-    pass
+    return lowest_heat_loss(s, min_same_dir=4, max_same_dir=10)
 
 
 if __name__ == "__main__":
