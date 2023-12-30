@@ -48,17 +48,18 @@ def lowest_heat_loss(s, min_same_dir=1, max_same_dir=3):
                     (heat_loss + s[new_y][new_x], new_y, new_x, dy, dx, n + new_n),
                 )
 
+        new_n = min_same_dir  # Reset to minimum for new direction
+
         for new_dy, new_dx in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
             if (new_dy, new_dx) in [(dy, dx), (-dy, -dx)]:
                 continue
-            new_n = min_same_dir  # Reset to minimum for new direction
             new_y = y + new_dy * new_n
             new_x = x + new_dx * new_n
 
             if 0 <= new_y < h and 0 <= new_x < w:
                 new_loss = heat_loss + sum(
                     s[y + new_dy * i][x + new_dx * i] for i in range(1, new_n + 1)
-                )
+                )  # Sum the values of all cells in the range
                 heappush(
                     frontier,
                     (new_loss, new_y, new_x, new_dy, new_dx, new_n),
