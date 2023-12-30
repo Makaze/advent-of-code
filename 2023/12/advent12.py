@@ -17,6 +17,7 @@ def main():
     ic(p2(s))
 
 
+@cache
 def count_solutions(record: str, groups: tuple[int, ...]) -> int:
     if not record:
         # Must be exactly 1 if groups is empty, otherwise 0
@@ -61,6 +62,7 @@ def possible_nonos(nono: str, with_multi=False) -> int:
 
     if with_multi:
         record = "?".join([record] * 5)
+        blocks *= 5
 
     return count_solutions(record, blocks)
 
