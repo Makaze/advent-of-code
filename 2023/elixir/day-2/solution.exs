@@ -1,4 +1,8 @@
 defmodule Solver do
+  @moduledoc """
+  https://adventofcode.com/2023/day/2
+  """
+
   def parse(line) do
     line
     |> String.replace(~r/Game \d+:\s+/, "")

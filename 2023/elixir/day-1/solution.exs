@@ -1,4 +1,8 @@
 defmodule Solver do
+  @moduledoc """
+  https://adventofcode.com/2023/day/1
+  """
+
   @names %{
     "zero" => "0o",
     "one" => "o1e",
