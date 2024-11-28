@@ -12,7 +12,7 @@ defmodule Solver do
     |> String.split(",", trim: true)
     |> Enum.map(&parse_item/1)
     |> Enum.reduce(
-      %{blue: 0, red: 0, green: 0},
+      %{red: 0, green: 0, blue: 0},
       &Map.merge(&2, &1, fn _key, default, new -> default + new end)
     )
   end
