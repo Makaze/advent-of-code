@@ -43,12 +43,15 @@ defmodule Solver do
   end
 end
 
-stream1 =
+file =
   File.stream!("input.txt")
+
+stream1 =
+  file
   |> Stream.map(&Solver.value/1)
 
 stream2 =
-  File.stream!("input.txt")
+  file
   |> Stream.map(&Solver.replace/1)
   |> Stream.map(&Solver.value/1)
 
