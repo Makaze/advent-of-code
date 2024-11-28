@@ -18,9 +18,10 @@ defmodule Solver do
   end
 
   defp parse_item(item) do
-    [count, color] = String.split(item, " ", trim: true)
-    color = String.to_atom(color)
-    %{color => String.to_integer(count)}
+    case String.split(item, " ", trim: true) do
+      [count, color] -> %{String.to_atom(color) => String.to_integer(count)}
+      _ -> %{}
+    end
   end
 
   def filter({games, index}) do
@@ -47,16 +48,16 @@ end
 file =
   File.stream!("input.txt")
   |> Stream.map(&Solver.parse/1)
-  |> Enum.with_index()
+  |> Stream.with_index()
 
 stream1 =
   file
-  |> Enum.map(&Solver.filter/1)
+  |> Stream.map(&Solver.filter/1)
   |> Enum.sum()
 
 stream2 =
   file
-  |> Enum.map(&Solver.powers/1)
+  |> Stream.map(&Solver.powers/1)
   |> Enum.sum()
 
 IO.puts("Part 1: #{stream1}")
