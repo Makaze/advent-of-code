@@ -13,32 +13,20 @@ defmodule Solver do
   def safe?([]), do: true
 
   def safe?(rest) do
-    increasing?(rest) or decreasing?(rest)
+    mono?(rest, &increasing?/2) or mono?(rest, &decreasing?/2)
   end
 
-  defp increasing?([]), do: true
-  defp increasing?([_]), do: true
+  defp mono?([], _), do: true
+  defp mono?([_], _), do: true
 
-  defp increasing?([first | rest]) do
+  defp mono?([first | rest], direction) do
     Enum.reduce_while(rest, first, fn this, prev ->
-      case this - prev do
-        diff when diff > 0 and diff < 4 -> {:cont, this}
-        _ -> {:halt, false}
-      end
+      if direction.(prev, this), do: {:cont, this}, else: {:halt, false}
     end) != false
   end
 
-  defp decreasing?([]), do: true
-  defp decreasing?([_]), do: true
-
-  defp decreasing?([first | rest]) do
-    Enum.reduce_while(rest, first, fn this, prev ->
-      case this - prev do
-        diff when diff < 0 and diff > -4 -> {:cont, this}
-        _ -> {:halt, false}
-      end
-    end) != false
-  end
+  defp increasing?(prev, this), do: this - prev > 0 and this - prev < 4
+  defp decreasing?(prev, this), do: this - prev < 0 and this - prev > -4
 
   def with_skip(rest, callback) do
     callback.(rest) or
