@@ -10,14 +10,9 @@ defmodule Solver do
     |> Enum.map(&String.to_integer/1)
   end
 
-  def safe?([]), do: true
-
   def safe?(rest) do
     mono?(rest, &increasing?/2) or mono?(rest, &decreasing?/2)
   end
-
-  defp mono?([], _), do: true
-  defp mono?([_], _), do: true
 
   defp mono?([first | rest], direction) do
     Enum.reduce_while(rest, first, fn this, prev ->
