@@ -56,9 +56,9 @@ defmodule Solver do
 end
 
 file =
-  File.read!("input.txt")
+  File.read!("test2.txt")
 
-# File.read!("test2.txt")
+# File.read!("input.txt")
 
 # File.read!("test.txt")
 
