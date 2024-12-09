@@ -23,12 +23,15 @@ defmodule Solver do
     map =
       data
       |> Enum.with_index()
-      |> Enum.reduce([], fn {line, row}, acc ->
+      |> Enum.reduce(%{}, fn {line, row}, acc ->
         line
         |> Enum.with_index()
         |> Enum.reduce(acc, fn {char, col}, acc ->
+          coord = [row, col]
+
           case char do
-            :x -> [[row, col] | acc]
+            :x -> Map.update(acc, :x, [coord], fn list -> [coord | list] end)
+            :a -> Map.update(acc, :a, [coord], fn list -> [coord | list] end)
             _ -> acc
           end
         end)
@@ -48,19 +51,6 @@ defmodule Solver do
     elem(tuple, index) |> get_in_tuple(rest)
   end
 
-  def get_in_tuple(_tuple, index) do
-    {:index_error, index}
-  end
-
-  def get_next(map, key) do
-    q = Map.fetch!(map, key)
-
-    case :queue.out(q) do
-      {{:value, coord}, new_q} -> {coord, Map.put(map, key, new_q)}
-      {:empty, _} -> {:error, :empty}
-    end
-  end
-
   def shift(coord, offset), do: Enum.zip(coord, offset) |> Enum.map(fn {a, b} -> a + b end)
 
   def move(:s, coord), do: shift(coord, [1, 0])
@@ -72,8 +62,6 @@ defmodule Solver do
   def move(:se, coord), do: shift(coord, [1, 1])
   def move(:sw, coord), do: shift(coord, [1, -1])
   def move(_, coord), do: coord
-
-  def count(dir, data, coord, walk \\ [:x])
 
   def count(_dir, _data, _coord, [:s, :a, :m, :x]), do: 1
 
@@ -94,28 +82,49 @@ defmodule Solver do
 
   def count(_, _, _, _), do: 0
 
-  def part1(file) do
-    {data, xs} = file |> parse()
+  def count_x(data, coord) do
+    nw = get_in_tuple(data, move(:nw, coord))
+    ne = get_in_tuple(data, move(:ne, coord))
+    sw = get_in_tuple(data, move(:sw, coord))
+    se = get_in_tuple(data, move(:se, coord))
 
-    xs
+    case {nw, ne, sw, se} do
+      {:m, :s, :m, :s} -> 1
+      {:s, :m, :s, :m} -> 1
+      {:m, :m, :s, :s} -> 1
+      {:s, :s, :m, :m} -> 1
+      _ -> 0
+    end
+  end
+
+  def part1({data, map}) do
+    Map.get(map, :x)
     |> Enum.map(fn x ->
       @dirs |> Enum.map(fn dir -> count(dir, data, x, [:x]) end) |> Enum.sum()
     end)
     |> Enum.sum()
   end
 
-  def sum({:ok, results, _, _, _, _}) do
-    Enum.sum(results)
+  def part2({data, map}) do
+    Map.get(map, :a)
+    |> Enum.map(fn a ->
+      count_x(data, a)
+    end)
+    |> Enum.sum()
   end
 end
 
 test_file =
   File.read!("test.txt")
   |> String.split(~r/\s+/, trim: true)
+  |> Solver.parse()
 
 file =
   File.read!("input.txt")
   |> String.split(~r/\s+/, trim: true)
+  |> Solver.parse()
 
 IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
 IO.inspect(Solver.part1(file), label: "Part 1 Real")
+IO.inspect(Solver.part2(test_file), label: "Part 2 Test")
+IO.inspect(Solver.part2(file), label: "Part 2 Real")
