@@ -1,6 +1,6 @@
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2024/day/3
+  https://adventofcode.com/2024/day/4
   """
 
   @dirs [:s, :n, :e, :w, :ne, :nw, :se, :sw]
@@ -119,11 +119,3 @@ file =
 
 IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
 IO.inspect(Solver.part1(file), label: "Part 1 Real")
-
-# File.read!("input.txt")
-
-# part1 = file |> Solver.part1() |> Solver.sum()
-# part2 = file |> Solver.part2() |> Solver.sum()
-#
-# IO.inspect(part1, label: "Part 1")
-# IO.inspect(part2, label: "Part 2")
