@@ -20,6 +20,8 @@ defmodule Solver do
         end)
       end)
 
+    data_tuple = data |> Enum.map(&List.to_tuple/1) |> List.to_tuple()
+
     map =
       data
       |> Enum.with_index()
@@ -30,16 +32,23 @@ defmodule Solver do
           coord = [row, col]
 
           case char do
-            :x -> Map.update(acc, :x, [coord], fn list -> [coord | list] end)
-            :a -> Map.update(acc, :a, [coord], fn list -> [coord | list] end)
-            _ -> acc
+            :x ->
+              Map.update(acc, :x, [count_from(data_tuple, coord)], fn list ->
+                [count_from(data_tuple, coord) | list]
+              end)
+
+            :a ->
+              Map.update(acc, :a, [count_x(data_tuple, coord)], fn list ->
+                [count_x(data_tuple, coord) | list]
+              end)
+
+            _ ->
+              acc
           end
         end)
       end)
 
-    data = data |> Enum.map(&List.to_tuple/1) |> List.to_tuple()
-
-    {data, map}
+    {data_tuple, map}
   end
 
   def get_in_tuple(tuple, []) do
@@ -50,6 +59,8 @@ defmodule Solver do
       when is_tuple(tuple) and tuple_size(tuple) - 1 >= index and index >= 0 do
     elem(tuple, index) |> get_in_tuple(rest)
   end
+
+  def get_in_tuple(_tuple, index), do: {:index_error, index}
 
   def shift(coord, offset), do: Enum.zip(coord, offset) |> Enum.map(fn {a, b} -> a + b end)
 
@@ -97,19 +108,17 @@ defmodule Solver do
     end
   end
 
-  def part1({data, map}) do
+  def count_from(data, x) do
+    @dirs |> Enum.map(fn dir -> count(dir, data, x, [:x]) end) |> Enum.sum()
+  end
+
+  def part1({_data, map}) do
     Map.get(map, :x)
-    |> Enum.map(fn x ->
-      @dirs |> Enum.map(fn dir -> count(dir, data, x, [:x]) end) |> Enum.sum()
-    end)
     |> Enum.sum()
   end
 
-  def part2({data, map}) do
+  def part2({_data, map}) do
     Map.get(map, :a)
-    |> Enum.map(fn a ->
-      count_x(data, a)
-    end)
     |> Enum.sum()
   end
 end
