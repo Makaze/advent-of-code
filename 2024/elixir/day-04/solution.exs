@@ -3,6 +3,8 @@ defmodule Solver do
   https://adventofcode.com/2024/day/3
   """
 
+  @dirs [:s, :n, :e, :w, :ne, :nw, :se, :sw]
+
   def parse(input) do
     data =
       input
@@ -21,15 +23,13 @@ defmodule Solver do
     map =
       data
       |> Enum.with_index()
-      |> Enum.reduce(%{}, fn {line, row}, acc ->
+      |> Enum.reduce([], fn {line, row}, acc ->
         line
         |> Enum.with_index()
-        |> Enum.reduce(acc, fn {char, col}, map ->
-          coord = [row, col]
-
+        |> Enum.reduce(acc, fn {char, col}, acc ->
           case char do
-            :x -> Map.update(map, :x, :queue.in(coord, :queue.new()), &:queue.in(coord, &1))
-            _ -> map
+            :x -> [[row, col] | acc]
+            _ -> acc
           end
         end)
       end)
@@ -44,12 +44,12 @@ defmodule Solver do
   end
 
   def get_in_tuple(tuple, [index | rest])
-      when is_tuple(tuple) and tuple_size(tuple) - 1 >= index do
+      when is_tuple(tuple) and tuple_size(tuple) - 1 >= index and index >= 0 do
     elem(tuple, index) |> get_in_tuple(rest)
   end
 
-  def get_in_tuple(tuple, index) do
-    {:index_error, tuple, index}
+  def get_in_tuple(_tuple, index) do
+    {:index_error, index}
   end
 
   def get_next(map, key) do
@@ -73,6 +73,8 @@ defmodule Solver do
   def move(:sw, coord), do: shift(coord, [1, -1])
   def move(_, coord), do: coord
 
+  def count(dir, data, coord, walk \\ [:x])
+
   def count(_dir, _data, _coord, [:s, :a, :m, :x]), do: 1
 
   def count(dir, data, coord, [:a, :m, :x] = walk) do
@@ -92,28 +94,31 @@ defmodule Solver do
 
   def count(_, _, _, _), do: 0
 
+  def part1(file) do
+    {data, xs} = file |> parse()
+
+    xs
+    |> Enum.map(fn x ->
+      @dirs |> Enum.map(fn dir -> count(dir, data, x, [:x]) end) |> Enum.sum()
+    end)
+    |> Enum.sum()
+  end
+
   def sum({:ok, results, _, _, _, _}) do
     Enum.sum(results)
   end
 end
 
-file =
+test_file =
   File.read!("test.txt")
   |> String.split(~r/\s+/, trim: true)
 
-{data, parsed} =
-  file
-  |> Solver.parse()
+file =
+  File.read!("input.txt")
+  |> String.split(~r/\s+/, trim: true)
 
-IO.inspect({data, parsed}, label: "Parsed")
-{first, parsed} = parsed |> Solver.get_next(:x)
-{second, parsed} = parsed |> Solver.get_next(:x)
-IO.inspect(first, label: "First X")
-IO.inspect(second, label: "Second X")
-IO.inspect(Solver.get_in_tuple(data, Solver.move(:s, second)), label: "Second X below")
-IO.inspect(Solver.count(:s, data, first, [:x]), label: "Second X below")
-IO.inspect(Solver.count(:se, data, first, [:x]), label: "Second X below")
-IO.inspect(Solver.count(:sw, data, first, [:x]), label: "Second X below")
+IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
+IO.inspect(Solver.part1(file), label: "Part 1 Real")
 
 # File.read!("input.txt")
 
