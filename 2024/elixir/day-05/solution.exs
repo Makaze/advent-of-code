@@ -18,17 +18,9 @@ defmodule Solver do
       left: left,
       right: right,
       sorter: fn
-        ^left = l, ^right = r ->
-          IO.inspect({l, r}, label: "Already in right order")
-          true
-
-        ^right = r, ^left = l ->
-          IO.inspect({l, r}, label: "Need swapped")
-          false
-
-        l, r ->
-          IO.inspect({l, r}, label: "Not relevant")
-          true
+        ^left, ^right -> true
+        ^right, ^left -> false
+        _left, _right -> true
       end
     }
   end
@@ -98,12 +90,10 @@ defmodule Solver do
   end
 end
 
-[rules, updates] =
-  File.read!("test.txt")
-  # File.read!("input.txt")
-  |> String.split(~r/\s\s+/, trim: true)
-
 # File.read!("test.txt")
+[rules, updates] =
+  File.read!("input.txt")
+  |> String.split(~r/\s\s+/, trim: true)
 
 {:ok, rules, _, _, _, _} = rules |> Solver.rules()
 {:ok, updates, _, _, _, _} = updates |> Solver.updates()
@@ -127,17 +117,14 @@ part2 =
 
     Enum.sort(x, fn a, b ->
       Enum.all?(
-        Enum.map(sorters, fn x ->
-          x.(a, b)
+        Enum.map(sorters, fn s ->
+          s.(a, b)
         end)
       )
     end)
   end)
   |> Enum.map(&Solver.middle/1)
   |> Enum.sum()
-
-# |> Enum.map(&Solver.middle/1)
-# |> Enum.sum()
 
 IO.inspect(part1, label: "Part 1")
 IO.inspect(part2, label: "Part 2")
