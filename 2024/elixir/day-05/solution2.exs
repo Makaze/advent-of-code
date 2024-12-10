@@ -71,6 +71,13 @@ defmodule Solver do
     end)
   end
 
+  def rules_to_map([_ | _] = list) when is_list(list) do
+    list
+    |> Enum.reduce(%{}, fn %Rule{left: l, right: r}, acc ->
+      Map.put(acc, {l, r}, true)
+    end)
+  end
+
   def sorted?(list, map, prev \\ MapSet.new([]))
 
   def sorted?([], _, _), do: true
@@ -103,41 +110,25 @@ end
   # File.read!("input.txt")
   |> String.split(~r/\s\s+/, trim: true)
 
-# File.read!("test.txt")
-
 {:ok, rules, _, _, _, _} = rules |> Solver.rules()
 {:ok, updates, _, _, _, _} = updates |> Solver.updates()
-map = Solver.rules_to_parsec(rules)
+r_parsec = Solver.rules_to_parsec(rules)
+map = Solver.rules_to_map(rules)
 
 part1 =
   updates
-  |> Enum.filter(fn x -> Solver.sorted?(x, map) end)
+  |> Enum.filter(fn x -> Solver.sorted?(x, r_parsec) end)
   |> Enum.map(&Solver.middle/1)
   |> Enum.sum()
 
 part2 =
   updates
-  |> Enum.filter(fn x -> !Solver.sorted?(x, map) end)
   |> Enum.map(fn x ->
-    sorters =
-      rules
-      |> Enum.map(fn rule ->
-        rule.sorter
-      end)
-
-    Enum.sort(x, fn a, b ->
-      Enum.all?(
-        Enum.map(sorters, fn x ->
-          x.(a, b)
-        end)
-      )
-    end)
+    Enum.sort_by(x, & &1, fn left, right -> Map.has_key?(map, {left, right}) end)
   end)
-  |> Enum.map(&Solver.middle/1)
-  |> Enum.sum()
 
 # |> Enum.map(&Solver.middle/1)
 # |> Enum.sum()
 
 IO.inspect(part1, label: "Part 1")
-IO.inspect(part2, label: "Part 2")
+IO.inspect(part2 |> Enum.map(&List.to_tuple/1), label: "Part 2")
