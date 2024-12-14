@@ -42,31 +42,31 @@ defmodule Solver do
     end
   end
 
-  defp eval(:invalid, _rest, result, ops, _ops_list), do: {false, {result, ops}}
-  defp eval(_acc, [], ops, result, _ops_list), do: {false, {result, ops}}
+  defp eval(:invalid, _rest, result, _ops_list), do: {false, result}
+  defp eval(_acc, [], result, _ops_list), do: {false, result}
 
-  defp eval(nil, [first | rest], result, ops, ops_list) do
-    eval(first, rest, result, ops, ops_list)
+  defp eval(nil, [first | rest], result, ops_list) do
+    eval(first, rest, result, ops_list)
   end
 
-  defp eval(acc, terms, result, ops, ops_list) do
-    do_op(acc, terms, result, ops, ops_list, ops_list)
+  defp eval(acc, terms, result, ops_list) do
+    do_op(acc, terms, result, ops_list, ops_list)
   end
 
-  defp do_op(_acc, _terms, result, ops, [], _ops_list), do: {false, {result, ops}}
+  defp do_op(_acc, _terms, result, [], _ops_list), do: {false, result}
 
-  defp do_op(acc, [first | rest] = terms, result, ops, [op | rest_ops], ops_list) do
+  defp do_op(acc, [first | rest] = terms, result, [op | rest_ops], ops_list) do
     output = op.(acc, first)
     solved = length(rest) == 1 and output == Enum.at(rest, 0)
 
     cond do
       solved ->
-        {true, {result, [op | ops]}}
+        {true, result}
 
       true ->
-        case eval(output, rest, result, [op | ops], ops_list) do
+        case eval(output, rest, result, ops_list) do
           {true, val} -> {true, val}
-          _ -> do_op(acc, terms, result, ops, rest_ops, ops_list)
+          _ -> do_op(acc, terms, result, rest_ops, ops_list)
         end
     end
   end
@@ -74,8 +74,8 @@ defmodule Solver do
   def sum({:ok, results, _, _, _, _}, ops) do
     results
     |> Enum.map(fn eq ->
-      case eval(nil, eq, Enum.at(eq, 0), [], ops) do
-        {true, {acc, _}} -> acc
+      case eval(nil, eq, Enum.at(eq, 0), ops) do
+        {true, acc} -> acc
         {false, _} -> 0
       end
     end)
