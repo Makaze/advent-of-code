@@ -1,6 +1,6 @@
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2024/day/4
+  https://adventofcode.com/2024/day/6
   """
 
   @turns %{n: :e, s: :w, e: :s, w: :n}
