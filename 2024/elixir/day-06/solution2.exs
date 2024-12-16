@@ -99,7 +99,7 @@ defmodule Solver do
             d = MapSet.member?(map[:distance], {dir, val})
 
             if d do
-              {:loop, coord}
+              {:loop, map[:temp_block]}
             else
               {val, nil}
             end
@@ -123,7 +123,7 @@ defmodule Solver do
   end
 
   def patrol(_data, _dir, :edge, distance, _map_fn), do: distance
-  def patrol(_data, dir, {:loop, coord}, _distance, _map_fn), do: {:loop, coord}
+  def patrol(_data, _dir, {:loop, coord}, _distance, _map_fn), do: {:loop, coord}
 
   def patrol(data, dir, {coord, :block}, distance, map_fn) do
     new_dir = @turns[dir]
@@ -138,7 +138,7 @@ defmodule Solver do
 
   def map_only(distance, {_dir, coord}, _data), do: MapSet.put(distance, {coord})
 
-  def map_with_dir(distance, {dir, coord}, data) do
+  def map_with_dir(distance, {dir, coord}, _data) do
     MapSet.put(distance, {dir, coord})
   end
 
@@ -152,8 +152,9 @@ defmodule Solver do
 
     distances
     |> Enum.map(fn
-      {dir, coord} when coord != map.origin.coord ->
+      {_dir, coord} when coord != map.origin.coord ->
         test_map = put_in(map[:jumps][coord], :block)
+        test_map = put_in(test_map[:temp_block], coord)
 
         case patrol(test_map, nil, nil, nil, &map_with_dir/3) do
           {:loop, coord} -> coord
