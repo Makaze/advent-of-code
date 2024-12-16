@@ -43,6 +43,10 @@ defmodule Solver do
   end
 
   defp eval(:invalid, _rest, result, _ops_list), do: {false, result}
+  defp eval(:invalid, _rest, result, [],  _ops_list), do: {false, result}
+  defp eval(:invalid, rest, result, rest_ops, ops_list) do
+    {false, result}
+  end
   defp eval(_acc, [], result, _ops_list), do: {false, result}
 
   defp eval(nil, [first | rest], result, ops_list) do
@@ -54,6 +58,7 @@ defmodule Solver do
   end
 
   defp do_op(_acc, _terms, result, [], _ops_list), do: {false, result}
+  defp do_op(acc, terms, result, [], ops_list), do: {false, result}
 
   defp do_op(acc, [first | rest] = terms, result, [op | rest_ops], ops_list) do
     output = op.(acc, first)

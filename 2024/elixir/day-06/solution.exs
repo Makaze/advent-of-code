@@ -3,8 +3,35 @@ defmodule Solver do
   https://adventofcode.com/2024/day/4
   """
 
-  @dirs [:n, :s, :e, :w]
+  @turns %{n: :e, s: :w, e: :s, w: :n}
   @dir_map %{"^" => :n, "v" => :s, ">" => :e, "<" => :w}
+
+  defp jump_points(nil), do: %{n: nil, s: nil, e: nil, w: nil}
+
+  @doc """
+  Returns a map of jump points around this block when coming from each direction.
+  """
+  defp jump_points([row, col]) do
+    %{
+      n: [row - 1, col],
+      s: [row + 1, col],
+      e: [row, col + 1],
+      w: [row, col - 1]
+    }
+  end
+
+  @doc """
+  Returns a map of jump locations from this block, so far.
+  """
+  def get_jumps(dir, map, [row, col]) do
+    new_dir = @turns[dir]
+
+    case new_dir do
+      :n -> get_in(map[:col_history][col])
+      :w -> get_in(map[:row_history][row])
+      _ -> nil
+    end
+  end
 
   def parse(input) do
     data = %{
@@ -13,7 +40,7 @@ defmodule Solver do
       col_history: %{},
       origin: nil,
       height: Enum.count(input),
-      width: Enum.count(input[0])
+      width: Enum.count(String.graphemes(Enum.at(input, 0)))
     }
 
     input
@@ -24,45 +51,47 @@ defmodule Solver do
       |> String.graphemes()
       |> Enum.with_index()
       |> Enum.reduce(acc, fn
-        {"#", col}, acc ->
+        {"#", col}, new_acc ->
           coord = [row, col]
+          points = jump_points(coord)
 
-          jumps = %{
-            n: get_in(acc[:col_history][col]),
-            s: nil,
-            e: nil,
-            w: get_in(acc[:row_history][row]),
-            dir: nil
-          }
+          IO.inspect(points, label: "Jumps for #{row}, #{col}")
 
-          # Update jumps from obstacles to the north and west
-          acc = put_in(acc[:jumps][jumps[:n]][:s], coord)
-          acc = put_in(acc[:jumps][jumps[:w]][:e], coord)
+          new_acc =
+            Enum.reduce(points, new_acc, fn {key, [jrow, jcol] = val}, x ->
+              jumps = get_jumps(key, x, val)
+              x = put_in(x[:jumps][val], jumps)
 
-          acc = put_in(acc[:jumps][coord], jumps)
+              IO.inspect(get_in(x[:col_history][jcol]), label: "Col history")
+              IO.inspect(get_in(x[:row_history][jrow]), label: "Row history")
+              IO.inspect(get_in(x[:jumps]))
+
+              # Update jumps from obstacles to the north and west
+              x =
+                case {jumps, key} do
+                  {nil, _} -> x
+                  {v, :n} -> put_in(x[:jumps][v], val)
+                  {v, :w} -> put_in(x[:jumps][v], val)
+                  _ -> x
+                end
+            end)
 
           # Update last in this col and row
-          acc = put_in(acc[:row_history][row], coord)
-          acc = put_in(acc[:col_history][col], coord)
+          new_acc = put_in(new_acc[:row_history][row], points[:e])
+          new_acc = put_in(new_acc[:col_history][col], points[:s])
 
-        {dir, col}, acc when dir in ["^", "v", "<", ">"] ->
+        {dir, col}, new_acc when dir in ["^", "v", "<", ">"] ->
           coord = [row, col]
 
           dir = @dir_map[dir]
 
-          jumps = %{
-            n: get_in(acc[:col_history][col]),
-            s: nil,
-            e: nil,
-            w: get_in(acc[:row_history][row]),
-            dir: dir
-          }
+          jumps = get_jumps(dir, new_acc, coord)
+          new_acc = put_in(new_acc[:jumps][coord], jumps)
 
-          acc = put_in(acc[:jumps][coord][dir], jumps[dir])
-          put_in(acc[:origin], %{coord: coord, dir: dir})
+          put_in(new_acc[:origin], %{coord: coord, dir: dir})
 
-        _, _ ->
-          acc
+        _, new_acc ->
+          new_acc
       end)
     end)
   end
@@ -81,23 +110,16 @@ defmodule Solver do
         to_edge =
           case last[:dir] do
             :n -> get_in(last[:coord][1])
-            :s -> get_in(data[:height] - last[:coord][1])
+            :s -> get_in(data[:height]) - get_in(last[:coord][1])
             :e -> get_in(last[:coord][0])
-            :w -> get_in(data[:width] - last[:coord][0])
+            :w -> get_in(data[:width]) - get_in(last[:coord][0])
           end
 
         distance + to_edge
 
       jump ->
-        jump
+        new_dir = get_in(@turns[last[:dir]])
     end
-  end
-
-  def patrol(data, dir, distance) do
-  end
-
-  def count_from(data, x) do
-    @dirs |> Enum.map(fn dir -> count(dir, data, x, [:x]) end) |> Enum.sum()
   end
 
   def part1({_data, map}) do
@@ -121,7 +143,9 @@ file =
   |> String.split(~r/\s+/, trim: true)
   |> Solver.parse()
 
-IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
-IO.inspect(Solver.part1(file), label: "Part 1 Real")
-IO.inspect(Solver.part2(test_file), label: "Part 2 Test")
-IO.inspect(Solver.part2(file), label: "Part 2 Real")
+IO.inspect(test_file)
+
+# IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
+# IO.inspect(Solver.part1(file), label: "Part 1 Real")
+# IO.inspect(Solver.part2(test_file), label: "Part 2 Test")
+# IO.inspect(Solver.part2(file), label: "Part 2 Real")
