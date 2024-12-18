@@ -1,88 +1,111 @@
-Mix.install([
-  {:nimble_parsec, "~> 1.4"}
-])
-
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2024/day/7
+  https://adventofcode.com/2024/day/8
   """
 
-  import NimbleParsec
+  def parse(input) do
+    data = %{
+      height: Enum.count(input),
+      width: Enum.count(String.graphemes(Enum.at(input, 0))),
+      chars: %{}
+    }
 
-  def equation_from([result | rest]), do: %{result: result, values: rest}
+    input
+    |> Enum.with_index()
+    |> Enum.reduce(data, fn {line, row}, acc ->
+      line
+      |> String.trim()
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.reduce(acc, fn
+        {".", _}, new_acc ->
+          new_acc
 
-  anything = ignore(utf8_char([]))
+        {char, col}, new_acc ->
+          coord = {row, col}
 
-  equation =
-    integer(min: 1)
-    |> ignore(string(": "))
-    |> repeat(choice([integer(min: 1), ignore(string(" "))]))
-    |> reduce({__MODULE__, :equation_from, []})
+          new_acc =
+            case get_in(new_acc[:chars][char]) do
+              nil -> put_in(new_acc[:chars][char], %{})
+              _ -> new_acc
+            end
 
-  defparsec(
-    :parse,
-    repeat(
-      choice([
-        equation,
-        anything
-      ])
-    )
-  )
-
-  def concat_int(a, b) when is_integer(a) and is_integer(b) do
-    res = a * 10 ** trunc(:math.log10(b) + 1) + b
-    res
-  end
-
-  def eval(acc, [], result, ops, _ops_list) do
-    value = {acc == result, {acc, result, ops}}
-    value
-  end
-
-  def eval(nil, [first | rest], result, ops, ops_list) do
-    eval(first, rest, result, ops, ops_list)
-  end
-
-  def eval(acc, _, result, ops, _ops_list) when acc > result do
-    {false, {acc, result, ops}}
-  end
-
-  def eval(acc, [first | rest], result, ops, ops_list) when acc <= result do
-      Enum.reduce_while(ops_list, 0, fn op, _ ->
-        case eval(op.(acc, first), rest, result, [op | ops], ops_list) do
-          {true, val} ->
-            {:halt, {true, val}}
-
-          {false, val} ->
-            {:cont, {false, val}}
-        end
+          put_in(new_acc[:chars][char][coord], true)
       end)
+    end)
   end
 
-  def sum({:ok, results, _, _, _, _}, ops) do
-    results
-    |> Enum.map(fn eq ->
-      case eval(nil, eq.values, eq.result, [], ops) do
-        {true, {acc, _, _}} -> acc
-        {false, _} -> 0
+  defp antinodes(map, a, b, multiplier \\ false, rest \\ [])
+
+  defp antinodes(map, {arow, acol}, {brow, bcol}, false, []) do
+    {drow, dcol} = {brow - arow, bcol - acol}
+    left = {arow - drow, acol - dcol}
+    right = {brow + drow, bcol + dcol}
+    antis = [left, right] |> Enum.filter(fn x -> valid?(x, map) end)
+  end
+
+  defp antinodes(map, {arow, acol}, {brow, bcol}, multiplier, rest)
+       when is_integer(multiplier) do
+    {drow, dcol} = {(brow - arow) * multiplier, (bcol - acol) * multiplier}
+    left = {arow - drow, acol - dcol}
+    right = {brow + drow, bcol + dcol}
+    antis = [left, right] |> Enum.filter(fn x -> valid?(x, map) end)
+
+    rest = Enum.reduce(antis, rest, fn x, acc -> [x | acc] end)
+
+    cond do
+      length(antis) > 0 -> antinodes(map, {arow, acol}, {brow, bcol}, multiplier + 1, rest)
+      true -> rest
+    end
+  end
+
+  def valid?({row, col}, map) do
+    width = map.width
+    height = map.height
+
+    cond do
+      row < 0 -> false
+      row >= width -> false
+      col < 0 -> false
+      col >= height -> false
+      true -> true
+    end
+  end
+
+  def part1(map) do
+    for {char, coords} <- map.chars do
+      for {a, _} <- coords, {b, _} <- coords, a < b do
+        antinodes(map, a, b, false, [])
       end
-    end)
-    |> Enum.sum()
+    end
+    |> List.flatten()
+    |> MapSet.new()
+    |> Enum.count()
+  end
+
+  def part2(map) do
+    for {char, coords} <- map.chars do
+      for {a, _} <- coords, {b, _} <- coords, a < b do
+        antinodes(map, a, b, 0, [])
+      end
+    end
+    |> List.flatten()
+    |> MapSet.new()
+    |> Enum.count()
   end
 end
 
 test_file =
   File.read!("test.txt")
+  |> String.split(~r/\s+/, trim: true)
+  |> Solver.parse()
 
 file =
   File.read!("input.txt")
+  |> String.split(~r/\s+/, trim: true)
+  |> Solver.parse()
 
-part1_test = test_file |> Solver.parse() |> Solver.sum([&+/2, &*/2])
-IO.inspect(part1_test, label: "Part 1 test")
-part1 = file |> Solver.parse() |> Solver.sum([&+/2, &*/2])
-IO.inspect(part1, label: "Part 1 Real")
-
-part2_test = test_file |> Solver.parse() |> Solver.sum([&Solver.concat_int/2, &*/2, &+/2])
-IO.inspect(part2_test, label: "Part 2 Test")
-part2 = file |> Solver.parse() |> Solver.sum([&Solver.concat_int/2, &*/2, &+/2])
-IO.inspect(part2, label: "Part 2 Real")
+IO.inspect(Solver.part1(test_file), label: "Part 1 Test")
+IO.inspect(Solver.part1(file), label: "Part 1 Real")
+IO.inspect(Solver.part2(test_file), label: "Part 2 Test")
+IO.inspect(Solver.part2(file), label: "Part 2 Real")
