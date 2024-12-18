@@ -42,10 +42,7 @@ defmodule Solver do
     end
   end
 
-  def eval(acc, _rest, result, ops, _ops_list) when acc == :invalid do
-    {false, {result, ops}}
-  end
-
+  def eval(:invalid, _rest, result, ops, _ops_list), do: {false, {result, ops}}
   def eval(_acc, [], ops, result, _ops_list), do: {false, {result, ops}}
 
   def eval(nil, [first | rest], result, ops, ops_list) do
