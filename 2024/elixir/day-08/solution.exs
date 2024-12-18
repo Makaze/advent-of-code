@@ -41,7 +41,7 @@ defmodule Solver do
     {drow, dcol} = {brow - arow, bcol - acol}
     left = {arow - drow, acol - dcol}
     right = {brow + drow, bcol + dcol}
-    antis = [left, right] |> Enum.filter(fn x -> valid?(x, map) end)
+    [left, right] |> Enum.filter(fn x -> valid?(x, map) end)
   end
 
   defp antinodes(map, {arow, acol}, {brow, bcol}, multiplier, rest)
@@ -73,9 +73,9 @@ defmodule Solver do
   end
 
   def part1(map) do
-    for {char, coords} <- map.chars do
+    for {_, coords} <- map.chars do
       for {a, _} <- coords, {b, _} <- coords, a < b do
-        antinodes(map, a, b, false, [])
+        antinodes(map, a, b)
       end
     end
     |> List.flatten()
@@ -84,7 +84,7 @@ defmodule Solver do
   end
 
   def part2(map) do
-    for {char, coords} <- map.chars do
+    for {_, coords} <- map.chars do
       for {a, _} <- coords, {b, _} <- coords, a < b do
         antinodes(map, a, b, 0, [])
       end
