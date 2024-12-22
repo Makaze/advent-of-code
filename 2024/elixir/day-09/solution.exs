@@ -1,101 +1,52 @@
-Mix.install([
-  {:nimble_parsec, "~> 1.4"}
-])
-
 defmodule Solver do
   @moduledoc """
   https://adventofcode.com/2024/day/7
   """
 
-  import NimbleParsec
+  def map({nil, _}), do: []
+  def map({file, _}) when file < 0, do: []
+  def map({file, index}) when rem(index, 2) == 0, do: List.duplicate(div(index, 2), file)
+  def map({file, _}), do: List.duplicate(nil, file)
 
-  def file_from([file, gap]), do: %{file: file, gap: gap}
-  def file_from([file]), do: %{file: file, gap: 0}
+  def defrag([], _, out, _), do: out |> Enum.reverse() |> Enum.with_index()
+  def defrag(_, _, out, max) when length(out) >= max, do: defrag([], [], out, max)
+  def defrag([nil | _], [], out, max), do: defrag([], [], out, max)
 
-  anything = ignore(utf8_char([]))
+  def defrag([nil | files], [next | reverse], out, max),
+    do: defrag(files, reverse, [next | out], max)
 
-  file_gap =
-    integer(max: 1)
-    |> integer(max: 1)
-    |> reduce({__MODULE__, :file_from, []})
+  def defrag([next | files], reverse, out, max), do: defrag(files, reverse, [next | out], max)
 
-  file_only =
-    integer(max: 1)
-    |> reduce({__MODULE__, :file_from, []})
+  def sort(files) do
+    files = files |> Enum.with_index() |> Enum.map(&map/1) |> List.flatten()
+    reversed = files |> Enum.filter(& &1) |> Enum.reverse()
+    IO.inspect({files, reversed})
 
-  defparsec(
-    :parse,
-    repeat(
-      choice([
-        file_gap,
-        file_only
-      ])
-    )
-  )
-
-  def to_map(files) do
-
-    files =
-      files
-      |> Enum.with_index()
-
-    [_ | rest] =
-      files
-      |> Enum.reverse()
-
-    data = %{last_index: 0, disk: %{}, rest: rest}
-
-
-    map = files
-      |> Enum.reduce(data, fn {file, index}, acc ->
-        acc =
-          Enum.reduce(0..file.file, acc, fn key, inner_acc ->
-            key = key + inner_acc.last_index
-            %{inner_acc | key => index, last_index: key}
-          end)
-
-        Enum.reduce(0..file.gap, acc, fn key, inner_acc ->
-          [last | rest] = acc.rest
-          key = key + inner_acc.last_index
-          
-          %{inner_acc | key => nil, last_index: key}
-        end)
-      end)
-
-    Enum.reduce((map.last_index - 1)..0, map, fn reversi, acc ->
-      case acc[reversi] do
-        nil ->
-          nil
-      end
-    end)
+    defrag(files, reversed, [], length(reversed))
   end
 
-  def sum({:ok, results, _, _, _, _}, ops) do
+  def sum(results) do
     results
-    |> Enum.map(fn eq ->
-      case eval(nil, eq, Enum.at(eq, 0), ops) do
-        {true, acc} -> acc
-        {false, _} -> 0
-      end
-    end)
+    |> sort()
+    |> Enum.map(fn {val, index} -> val * index end)
     |> Enum.sum()
   end
 end
 
 test_file =
-  File.read!("test.txt")
+  File.stream!("test.txt", [], 1)
+  |> Stream.map(fn <<b>> -> b - ?0 end)
 
 file =
-  File.read!("input.txt")
+  File.stream!("input.txt", [], 1)
+  |> Stream.map(fn <<b>> -> b - ?0 end)
 
-part1_test = test_file |> Solver.parse() |> Solver.sum([&Solver.divide/2, &-/2])
+part1_test = test_file |> Solver.sum()
 IO.inspect(part1_test, label: "Part 1 Test")
-part1 = file |> Solver.parse() |> Solver.sum([&Solver.divide/2, &-/2])
+part1 = file |> Solver.sum()
 IO.inspect(part1, label: "Part 1 Real")
 
-part2_test =
-  test_file |> Solver.parse() |> Solver.sum([&Solver.unconcat/2, &Solver.divide/2, &-/2])
-
-IO.inspect(part2_test, label: "Part 2 Test")
-part2 = file |> Solver.parse() |> Solver.sum([&Solver.unconcat/2, &Solver.divide/2, &-/2])
-IO.inspect(part2, label: "Part 2 Real")
+# part2_test = test_file |> Solver.parse() |> Solver.sum()
+# IO.inspect(part2_test, label: "Part 2 Test")
+# part2 = file |> Solver.parse() |> Solver.sum()
+# IO.inspect(part2, label: "Part 2 Real")
