@@ -4,7 +4,7 @@ Mix.install([
 
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2024/day/17
+  https://adventofcode.com/2024/day/23
   """
 
   import NimbleParsec
@@ -72,13 +72,23 @@ defmodule Solver do
     end
   end
 
-  def complete(%{nodes: nodes}) do
-    skeys =
-      nodes
-      |> Map.keys()
+  defp complete?([]), do: false
+
+  defp complete?(nodes) do
+    for a <- nodes, b <- nodes, a < b do
+      {a, b}
+    end
+    |> Enum.all?(fn x -> edge?(nil, x) end)
   end
 
-  def edge?(data, edge), do: get_in(data[:edges][edge])
+  defp edge?(nil, edge) do
+    data = :persistent_term.get(:data)
+    get_in(data[:edges][edge])
+  end
+
+  defp edge?(data, edge) do
+    get_in(data[:edges][edge])
+  end
 
   def part1(map) do
     map.t
@@ -89,6 +99,57 @@ defmodule Solver do
     |> Enum.reject(&(!&1))
     |> Enum.uniq()
     |> Enum.count()
+  end
+
+  def part2(map) do
+    starts =
+      map.nodes
+      |> Enum.map(fn {k, v} ->
+        value = [k | v |> Map.keys()]
+        %{whole: value, curr: value}
+      end)
+
+    0..(map.edges |> Enum.count())
+    |> Enum.reduce_while(%{sets: starts, index: 0}, fn _, acc ->
+      acc.sets
+      |> Stream.filter(&complete?(&1[:curr]))
+      |> Enum.take(1)
+      |> case do
+        [match] ->
+          {:halt, match.curr |> Enum.sort()}
+
+        [] ->
+          size = length(Enum.at(acc.sets, 0).whole)
+
+          acc =
+            cond do
+              acc.index == size ->
+                acc = put_in(acc[:index], 0)
+
+                sets =
+                  acc.sets
+                  |> Enum.map(fn x ->
+                    %{x | whole: x.curr}
+                  end)
+
+                put_in(acc[:sets], sets)
+
+              true ->
+                put_in(acc[:index], acc.index + 1)
+            end
+
+          sets =
+            acc.sets
+            |> Enum.map(fn x ->
+              Map.update(x, :curr, x.whole, fn _ -> List.delete_at(x.whole, acc.index) end)
+            end)
+
+          acc = put_in(acc[:sets], sets)
+
+          {:cont, acc}
+      end
+    end)
+    |> Enum.join(",")
   end
 end
 
@@ -104,6 +165,7 @@ file =
 
 IO.inspect(test_file |> Solver.part1(), label: "Part 1 Test")
 IO.inspect(file |> Solver.part1(), label: "Part 1 Real")
-IO.inspect(file |> Solver.complete(), label: "Part 1 Real")
-# IO.inspect(test_file |> Solver.part2(), label: "Part 2 Test")
-# IO.inspect(file |> Solver.part2(), label: "Part 2 Real")
+:persistent_term.put(:data, test_file)
+IO.inspect(test_file |> Solver.part2(), label: "Part 2 Test")
+:persistent_term.put(:data, file)
+IO.inspect(file |> Solver.part2(), label: "Part 2 Real")
