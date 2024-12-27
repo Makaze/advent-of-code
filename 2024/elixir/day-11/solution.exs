@@ -45,10 +45,6 @@ defmodule Memoize do
   is already cached. If cached, the result is returned immediately; otherwise,
   the function is executed, and the result is stored in the cache.
 
-  ## Arguments
-
-    - `name` - The function name and its parameters (e.g., `blink(v, 1)`).
-
   ## Example
 
       Memoize.defmemo my_function(x, y) do
@@ -65,21 +61,17 @@ defmodule Memoize do
       def unquote(name)(unquote_splicing(args)) do
         cache_table = String.to_atom("#{__MODULE__}_#{unquote(name)}_cache")
 
-        # Ensure the table exists
         if :ets.info(cache_table) == :undefined do
           :ets.new(cache_table, [:named_table, :public, :set])
         end
 
-        # Create a unique cache key
         args_key = {__MODULE__, unquote(name), [unquote_splicing(args)]}
 
-        # Check if the result is cached
         case :ets.lookup(cache_table, args_key) do
           [{^args_key, result}] ->
             result
 
           [] ->
-            # Compute and cache the result
             result = (fn -> unquote(body) end).()
             :ets.insert(cache_table, {args_key, result})
             result
