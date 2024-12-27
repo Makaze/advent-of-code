@@ -96,7 +96,7 @@ defmodule Solver do
 
   import Memoize
 
-  defp count_digits(0), do: 1
+  defp count_digits(v) when v < 10, do: 1
   defp count_digits(v), do: :math.log10(v) |> floor() |> Kernel.+(1) |> trunc()
 
   defmemo blink(v, 1) do
