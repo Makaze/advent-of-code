@@ -32,8 +32,28 @@ defmodule Solver do
           [{char, coord} | inner_acc]
         end)
       end)
+      |> Enum.reduce(%{plots: %{}, seen: %{}, plot: 0}, fn {char, coord}, %{plot: plot} = acc ->
+        case get_in(acc[:seen][coord]) do
+          nil ->
+            %{members: members, char: ^char} =
+              result =
+              fill(data_tuple, [{char, coord}], %{edges: 0, char: char, members: [], corners: []})
 
-    {data_tuple, data}
+            acc =
+              members
+              |> Enum.reduce(acc, fn k, deep_acc ->
+                update(deep_acc, [:seen, k], true)
+              end)
+
+            acc = update(acc, [:plots, plot], result)
+            update_in(acc[:plot], &(&1 + 1))
+
+          _ ->
+            acc
+        end
+      end)
+
+    data
   end
 
   def get_in_tuple(tuple, []) do
@@ -61,7 +81,7 @@ defmodule Solver do
 
   def fill(_data, [], plot), do: plot
 
-  def fill(data, [{value, index, dir} | rest], plot) do
+  def fill(data, [{value, index} | rest], plot) do
     cond do
       index not in plot.members ->
         edges =
@@ -73,20 +93,22 @@ defmodule Solver do
             cond do
               new_value == value ->
                 if next in plot.members do
-                  {true, next, dir}
+                  true
                 else
-                  {new_value, next, dir}
+                  {new_value, next}
                 end
 
               true ->
-                {nil, next, dir}
+                {nil, dir}
             end
           end)
 
         plot = update_in(plot[:members], &([index | &1] |> Enum.uniq()))
 
         plot =
-          update_in(plot[:edges], fn x -> (x + (4 - length(edges |> Enum.reject(&(!elem(&1, 0)))))) end)
+          update_in(plot[:edges], fn x ->
+            x + (4 - length(edges |> Enum.reject(&(is_tuple(&1) and elem(&1, 0) == nil))))
+          end)
 
         diagonals =
           %{
@@ -96,95 +118,75 @@ defmodule Solver do
             sw: move(:sw, index)
           }
           |> Enum.map(fn {k, v} ->
-            {k, get_in_tuple(data, v)}
+            case get_in_tuple(data, v) do
+              ^value ->
+                {v, k}
+
+              _other ->
+                {nil, k}
+            end
           end)
 
-        IO.inspect({diagonals, edges})
-
         corners =
-          case edges |> Enum.reject(fn x -> elem(x, 0) end) do
-            [{nil, :n}] ->
-              {nw, sw} =
-                {get_in_tuple(data, move(:ne, index)) == value,
-                 get_in_tuple(data, move(:nw, index)) == value}
+          %{
+            ne:
+              [{nil, :n}, {nil, :e}] |> Enum.all?(&(&1 in edges)) or
+                (not ([{nil, :n}, {nil, :e}] |> Enum.any?(&(&1 in edges))) and
+                   {nil, :ne} in diagonals),
+            nw:
+              [{nil, :n}, {nil, :w}] |> Enum.all?(&(&1 in edges)) or
+                (not ([{nil, :n}, {nil, :w}] |> Enum.any?(&(&1 in edges))) and
+                   {nil, :nw} in diagonals),
+            se:
+              [{nil, :s}, {nil, :e}] |> Enum.all?(&(&1 in edges)) or
+                (not ([{nil, :s}, {nil, :e}] |> Enum.any?(&(&1 in edges))) and
+                   {nil, :se} in diagonals),
+            sw:
+              [{nil, :s}, {nil, :w}] |> Enum.all?(&(&1 in edges)) or
+                (not ([{nil, :s}, {nil, :w}] |> Enum.any?(&(&1 in edges))) and
+                   {nil, :sw} in diagonals)
+          }
+          |> Enum.map(fn
+            {:ne, true} -> move(:e, index)
+            {:nw, true} -> index
+            {:se, true} -> move(:se, index)
+            {:sw, true} -> move(:s, index)
+            _ -> false
+          end)
+          |> Enum.reject(&(!&1))
 
-              nw =
-                if nw do
-                end
+        plot =
+          corners
+          |> Enum.reduce(plot, fn corner, c_acc ->
+            update_in(c_acc[:corners], &[corner | &1])
+          end)
 
-            [{nil, :n}, {nil, :e}] ->
-              [move(:e, index)]
-
-            [{nil, :n}, {nil, :w}] ->
-              [index]
-
-            [{nil, :s}, {nil, :e}] ->
-              [move(:se, index)]
-
-            [{nil, :s}, {nil, :w}] ->
-              [move(:s, index)]
-
-            [{nil, :n}, {nil, :s}, {nil, :e}] ->
-              [move(:e, index), move(:se, index)]
-
-            [{nil, :n}, {nil, :s}, {nil, :w}] ->
-              [index, move(:s, index)]
-
-            [{nil, :n}, {nil, :e}, {nil, :w}] ->
-              [index, move(:e, index)]
-
-            [{nil, :s}, {nil, :e}, {nil, :w}] ->
-              [move(:s, index), move(:se, index)]
-
-            [{nil, :n}, {nil, :s}, {nil, :e}, {nil, :w}] ->
-              [index, move(:e, index), move(:s, index), move(:se, index)]
-
-            _ -> []
-          end
-
-        fill(data, (edges |> Enum.reject(&(elem(&1, 0) == true))) ++ rest, plot)
+        fill(
+          data,
+          (edges |> Enum.reject(&((is_tuple(&1) and elem(&1, 0) == nil) or &1 == true))) ++ rest,
+          plot
+        )
 
       true ->
         fill(data, rest, plot)
     end
   end
 
-  def part1({data, rest}) do
-    rest =
-      rest
-      |> Enum.reduce(%{plots: %{}, seen: %{}, plot: 0}, fn {char, coord}, %{plot: plot} = acc ->
-        case get_in(acc[:seen][coord]) do
-          nil ->
-            %{members: members, char: ^char} =
-              result =
-              fill(data, [{char, coord, nil}], %{edges: 0, char: char, members: [], corners: %{}})
-
-            acc =
-              members
-              |> Enum.reduce(acc, fn k, deep_acc ->
-                update(deep_acc, [:seen, k], true)
-              end)
-
-            acc = update(acc, [:plots, plot], result)
-            update_in(acc[:plot], &(&1 + 1))
-
-          _ ->
-            acc
-        end
-      end)
-
+  def part1(rest) do
     rest.plots
     |> Enum.map(fn {_k, v} -> length(v.members) * v.edges end)
     |> Enum.sum()
   end
 
-  def part2(path) do
-    path
+  def part2(rest) do
+    rest.plots
+    |> Enum.map(fn {_k, v} -> length(v.members) * (v.corners |> Enum.count()) end)
+    |> Enum.sum()
   end
 end
 
 test_file =
-  File.read!("test.txt")
+  File.read!("test2.txt")
   |> String.split(~r/\s+/, trim: true)
 
 file =
@@ -193,3 +195,5 @@ file =
 
 IO.inspect(test_file |> Solver.parse() |> Solver.part1(), label: "Part 1 Test")
 IO.inspect(file |> Solver.parse() |> Solver.part1(), label: "Part 1 Real")
+IO.inspect(test_file |> Solver.parse() |> Solver.part2(), label: "Part 2 Test")
+IO.inspect(file |> Solver.parse() |> Solver.part2(), label: "Part 2 Real")
