@@ -55,37 +55,67 @@ defmodule Solver do
   def move(:w, coord), do: shift(coord, [0, -1])
   def move(_, coord), do: coord
 
-  def count(_data, [], fill), do: fill.edges
+  def fill(_data, [], plot), do: plot
 
-  def count(data, [{value, index} | rest], fill) do
-    edges =
-      @dirs
-      |> Enum.map(fn dir ->
-        next = move(dir, index)
-        new_value = get_in_tuple(data, next)
+  def fill(data, [{value, index} | rest], plot) do
+    cond do
+      index not in plot.members ->
+        edges =
+          @dirs
+          |> Enum.map(fn dir ->
+            next = move(dir, index)
+            new_value = get_in_tuple(data, next)
 
-        cond do
-          new_value == value ->
-            if next in fill.plots do
-              nil
-            else
-              {new_value, next}
+            cond do
+              new_value == value ->
+                if next in plot.members do
+                  true
+                else
+                  {new_value, next}
+                end
+
+              true ->
+                nil
             end
+          end)
+          |> Enum.reject(&(!&1))
 
-          true ->
-            nil
-        end
-      end)
-      |> Enum.reject(&(!&1))
+        plot = update_in(plot[:members], &([index | &1] |> Enum.uniq()))
+        plot = update_in(plot[:edges], &(&1 + (4 - length(edges))))
 
-    fill = update(fill, [:plots, index], true)
-    fill = update_in(fill[:edges], &(&1 + (4 - length(edges))))
+        fill(data, (edges |> Enum.reject(&(&1 == true))) ++ rest, plot)
 
-    count(data, rest, fill)
+      true ->
+        fill(data, rest, plot)
+    end
   end
 
   def part1({data, rest}) do
-    count(data, rest, %{edges: 0, plots: %{}})
+    rest =
+      rest
+      |> Enum.reduce(%{plots: %{}, seen: %{}, plot: 0}, fn {char, coord}, %{plot: plot} = acc ->
+        case get_in(acc[:seen][coord]) do
+          nil ->
+            %{members: members, char: ^char} =
+              result = fill(data, [{char, coord}], %{edges: 0, char: char, members: []})
+
+            acc =
+              members
+              |> Enum.reduce(acc, fn k, deep_acc ->
+                update(deep_acc, [:seen, k], true)
+              end)
+
+            acc = update(acc, [:plots, plot], result)
+            update_in(acc[:plot], &(&1 + 1))
+
+          _ ->
+            acc
+        end
+      end)
+
+    rest.plots
+    |> Enum.map(fn {_k, v} -> length(v.members) * v.edges end)
+    |> Enum.sum()
   end
 
   def part2(path) do
@@ -101,5 +131,5 @@ file =
   File.read!("input.txt")
   |> String.split(~r/\s+/, trim: true)
 
-# IO.inspect(test_file |> Solver.parse(), label: "Part 1 Test")
 IO.inspect(test_file |> Solver.parse() |> Solver.part1(), label: "Part 1 Test")
+IO.inspect(file |> Solver.parse() |> Solver.part1(), label: "Part 1 Real")
