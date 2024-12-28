@@ -53,11 +53,15 @@ defmodule Solver do
   def move(:n, coord), do: shift(coord, [-1, 0])
   def move(:e, coord), do: shift(coord, [0, 1])
   def move(:w, coord), do: shift(coord, [0, -1])
+  def move(:nw, coord), do: shift(coord, [-1, -1])
+  def move(:sw, coord), do: shift(coord, [1, -1])
+  def move(:ne, coord), do: shift(coord, [-1, 1])
+  def move(:se, coord), do: shift(coord, [1, 1])
   def move(_, coord), do: coord
 
   def fill(_data, [], plot), do: plot
 
-  def fill(data, [{value, index} | rest], plot) do
+  def fill(data, [{value, index, dir} | rest], plot) do
     cond do
       index not in plot.members ->
         edges =
@@ -69,21 +73,76 @@ defmodule Solver do
             cond do
               new_value == value ->
                 if next in plot.members do
-                  true
+                  {true, next, dir}
                 else
-                  {new_value, next}
+                  {new_value, next, dir}
                 end
 
               true ->
-                nil
+                {nil, next, dir}
             end
           end)
-          |> Enum.reject(&(!&1))
 
         plot = update_in(plot[:members], &([index | &1] |> Enum.uniq()))
-        plot = update_in(plot[:edges], &(&1 + (4 - length(edges))))
 
-        fill(data, (edges |> Enum.reject(&(&1 == true))) ++ rest, plot)
+        plot =
+          update_in(plot[:edges], fn x -> (x + (4 - length(edges |> Enum.reject(&(!elem(&1, 0)))))) end)
+
+        diagonals =
+          %{
+            ne: move(:ne, index),
+            nw: move(:nw, index),
+            se: move(:se, index),
+            sw: move(:sw, index)
+          }
+          |> Enum.map(fn {k, v} ->
+            {k, get_in_tuple(data, v)}
+          end)
+
+        IO.inspect({diagonals, edges})
+
+        corners =
+          case edges |> Enum.reject(fn x -> elem(x, 0) end) do
+            [{nil, :n}] ->
+              {nw, sw} =
+                {get_in_tuple(data, move(:ne, index)) == value,
+                 get_in_tuple(data, move(:nw, index)) == value}
+
+              nw =
+                if nw do
+                end
+
+            [{nil, :n}, {nil, :e}] ->
+              [move(:e, index)]
+
+            [{nil, :n}, {nil, :w}] ->
+              [index]
+
+            [{nil, :s}, {nil, :e}] ->
+              [move(:se, index)]
+
+            [{nil, :s}, {nil, :w}] ->
+              [move(:s, index)]
+
+            [{nil, :n}, {nil, :s}, {nil, :e}] ->
+              [move(:e, index), move(:se, index)]
+
+            [{nil, :n}, {nil, :s}, {nil, :w}] ->
+              [index, move(:s, index)]
+
+            [{nil, :n}, {nil, :e}, {nil, :w}] ->
+              [index, move(:e, index)]
+
+            [{nil, :s}, {nil, :e}, {nil, :w}] ->
+              [move(:s, index), move(:se, index)]
+
+            [{nil, :n}, {nil, :s}, {nil, :e}, {nil, :w}] ->
+              [index, move(:e, index), move(:s, index), move(:se, index)]
+
+            _ -> []
+          end
+
+        fill(data, (edges |> Enum.reject(&(elem(&1, 0) == true))) ++ rest, plot)
 
       true ->
         fill(data, rest, plot)
@@ -97,7 +156,8 @@ defmodule Solver do
         case get_in(acc[:seen][coord]) do
           nil ->
             %{members: members, char: ^char} =
-              result = fill(data, [{char, coord}], %{edges: 0, char: char, members: []})
+              result =
+              fill(data, [{char, coord, nil}], %{edges: 0, char: char, members: [], corners: %{}})
 
             acc =
               members
