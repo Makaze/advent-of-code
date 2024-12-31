@@ -94,19 +94,20 @@ defmodule Solver do
   def part2({:ok, results, _, _, _, _}, constraints) do
     time =
       100..10_000
-      |> Enum.map(fn i ->
-        Task.async(fn ->
-          f =
-            results
-            |> Enum.map(&predict(&1, i, constraints))
-            |> Enum.frequencies()
+      |> Enum.reduce_while(100, fn i, acc ->
+        f =
+          results
+          |> Enum.map(&predict(&1, i, constraints))
+          |> Enum.frequencies()
+          |> Map.values()
+          |> Enum.max()
 
-          {f |> Map.values() |> Enum.max(), i}
-        end)
+        if f == 1 do
+          {:halt, i}
+        else
+          {:cont, f}
+        end
       end)
-      |> Enum.map(fn task -> Task.await(task) end)
-      |> Enum.min()
-      |> elem(1)
 
     print(
       results
