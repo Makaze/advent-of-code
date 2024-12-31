@@ -39,19 +39,10 @@ defmodule Solver do
   )
 
   def predict(%{p: p, v: v}, time, constraints \\ %{h: 103, w: 101}) do
-    new = %{x: p.x + v.x * time, y: p.y + v.y * time}
-
-    new
-    |> Map.update(:x, new.x, fn
-      x when x < 0 -> rem(constraints.w - rem(abs(x), constraints.w), constraints.w)
-      x when x >= constraints.w -> rem(x, constraints.w)
-      x -> x
-    end)
-    |> Map.update(:y, new.y, fn
-      y when y < 0 -> rem(constraints.h - rem(abs(y), constraints.h), constraints.h)
-      y when y >= constraints.h -> rem(y, constraints.h)
-      y -> y
-    end)
+    new = %{
+      x: rem(p.x + (constraints.w + v.x) * time, constraints.w),
+      y: rem(p.y + (constraints.h + v.y) * time, constraints.h)
+    }
   end
 
   def part1({:ok, results, _, _, _, _}, time, constraints) do
