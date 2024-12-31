@@ -43,20 +43,18 @@ defmodule Solver do
 
     new
     |> Map.update(:x, new.x, fn
-      x when x < 0 -> constraints.w - 1 - rem(abs(x), constraints.w)
+      x when x < 0 -> rem(constraints.w - rem(abs(x), constraints.w), constraints.w)
       x when x >= constraints.w -> rem(x, constraints.w)
       x -> x
     end)
     |> Map.update(:y, new.y, fn
-      y when y < 0 -> constraints.h - 1 - rem(abs(y), constraints.h)
+      y when y < 0 -> rem(constraints.h - rem(abs(y), constraints.h), constraints.h)
       y when y >= constraints.h -> rem(y, constraints.h)
       y -> y
     end)
   end
 
-  def sum({:ok, results, _, _, _, _}, time, constraints) do
-    IO.inspect(results, label: "Before predict #{time}")
-
+  def part1({:ok, results, _, _, _, _}, time, constraints) do
     results =
       results
       |> Enum.map(&predict(&1, time, constraints))
@@ -88,23 +86,62 @@ defmodule Solver do
       }
     }
 
-    IO.inspect({results, quads}, label: "After predict #{time}")
-
     quads
     |> Enum.reduce(%{}, fn {k, q}, acc ->
       vals =
         results
         |> Enum.reject(fn robot ->
           check = robot.x not in q.left..q.right or robot.y not in q.top..q.bottom
-          # IO.inspect({check, robot, k, q}, label: "Check")
           check
         end)
 
       put_in(acc[k], vals)
     end)
+    |> Enum.map(fn {_k, v} -> length(v) end)
+    |> Enum.product()
+  end
 
-    # |> Enum.map(fn {_k, v} -> length(v) end)
-    # |> Enum.product()
+  def part2({:ok, results, _, _, _, _}, constraints) do
+    time =
+      100..10_000
+      |> Enum.map(fn i ->
+        Task.async(fn ->
+          f =
+            results
+            |> Enum.map(&predict(&1, i, constraints))
+            |> Enum.frequencies()
+
+          {f |> Map.values() |> Enum.max(), i}
+        end)
+      end)
+      |> Enum.map(fn task -> Task.await(task) end)
+      |> Enum.min()
+      |> elem(1)
+
+    print(
+      results
+      |> Enum.map(&predict(&1, time, constraints)),
+      constraints
+    )
+
+    time
+  end
+
+  defp print(prediction, constraints) do
+    p =
+      for y <- 0..(constraints.h - 1) do
+        for x <- 0..(constraints.w - 1) do
+          if %{x: x, y: y} in prediction do
+            "X"
+          else
+            " "
+          end
+        end
+        |> Enum.join("")
+      end
+      |> Enum.join("\n")
+
+    IO.puts(p)
   end
 end
 
@@ -114,11 +151,6 @@ test_file =
 file =
   File.read!("input.txt")
 
-# IO.inspect(test_file |> Solver.parse() |> Solver.sum(1, %{h: 7, w: 11}), label: "Part 1 Test ====== 1 SECOND")
-# IO.inspect(test_file |> Solver.parse() |> Solver.sum(2, %{h: 7, w: 11}), label: "Part 1 Test ====== 2 SECOND")
-IO.inspect(test_file |> Solver.parse() |> Solver.sum(100, %{h: 7, w: 11}), label: "Part 1 Test")
-# IO.inspect(file |> Solver.parse() |> Solver.sum(100, %{h: 103, w: 101}), label: "Part 1 Real")
-# IO.inspect(file |> Solver.parse() |> Solver.sum(), label: "Part 1 Real")
-#
-# IO.inspect(test_file |> Solver.parse() |> Solver.sum(10_000_000_000_000), label: "Part 2 Test")
-# IO.inspect(file |> Solver.parse() |> Solver.sum(10_000_000_000_000), label: "Part 2 Real")
+IO.inspect(test_file |> Solver.parse() |> Solver.part1(100, %{h: 7, w: 11}), label: "Part 1 Test")
+IO.inspect(file |> Solver.parse() |> Solver.part1(100, %{h: 103, w: 101}), label: "Part 1 Real")
+IO.inspect(file |> Solver.parse() |> Solver.part2(%{h: 103, w: 101}), label: "Part 2 Real")
