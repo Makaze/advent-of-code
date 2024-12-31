@@ -91,8 +91,7 @@ defmodule Solver do
       vals =
         results
         |> Enum.reject(fn robot ->
-          check = robot.x not in q.left..q.right or robot.y not in q.top..q.bottom
-          check
+          robot.x not in q.left..q.right or robot.y not in q.top..q.bottom
         end)
 
       put_in(acc[k], vals)
