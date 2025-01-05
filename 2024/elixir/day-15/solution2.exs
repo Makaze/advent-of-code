@@ -49,10 +49,10 @@ defmodule Solver do
   def moves_from(chars) do
     chars
     |> Enum.map(fn
-      "^" -> :n
-      "v" -> :s
-      "<" -> :w
-      ">" -> :e
+      "^" -> :up
+      "v" -> :down
+      "<" -> :left
+      ">" -> :right
     end)
   end
 
@@ -124,10 +124,10 @@ defmodule Solver do
 
   def shift(coord, offset), do: Enum.zip(coord, offset) |> Enum.map(fn {a, b} -> a + b end)
 
-  def move(:s, coord), do: shift(coord, [1, 0])
-  def move(:n, coord), do: shift(coord, [-1, 0])
-  def move(:e, coord), do: shift(coord, [0, 1])
-  def move(:w, coord), do: shift(coord, [0, -1])
+  def move(:down, coord), do: shift(coord, [1, 0])
+  def move(:up, coord), do: shift(coord, [-1, 0])
+  def move(:right, coord), do: shift(coord, [0, 1])
+  def move(:left, coord), do: shift(coord, [0, -1])
   def move(_, coord), do: coord
 
   def shove(:wall, dir, _last_type, _coord, new_coord), do: {:err, %{new_coord => :wall}}
@@ -138,15 +138,20 @@ defmodule Solver do
   #   future = shove(data[new_coord], dir, :robot, coord, new_coord)
   # end
 
-  def shove(:left_box, dir, last_type, [oy, ox] = coord, [y, x] = left) when dir in [:n, :s] do
+  def shove(:left_box, dir, last_type, [oy, ox] = coord, [y, x] = left)
+      when dir in [:up, :down] do
     data = get_data(:data)
     right = [y, x + 1]
     last_right_type = data[[oy, ox + 1]]
-    maybe = %{left => last_type, right => last_right_type}
+
+    maybe =
+      case last_type do
+        :left_box -> %{left => last_type}
+        _ -> %{left => last_type, right => :empty}
+      end
+
     next_left = move(dir, left)
     next_right = move(dir, right)
-
-    IO.inspect({left, right, last_type, last_right_type}, label: "left box")
 
     future_left = shove(data[next_left], dir, :left_box, left, next_left)
     future_right = shove(data[next_right], dir, :right_box, right, next_right)
@@ -163,15 +168,20 @@ defmodule Solver do
     end
   end
 
-  def shove(:right_box, dir, last_type, [oy, ox] = coord, [y, x] = right) when dir in [:n, :s] do
+  def shove(:right_box, dir, last_type, [oy, ox] = coord, [y, x] = right)
+      when dir in [:up, :down] do
     data = get_data(:data)
     left = [y, x - 1]
     last_left_type = data[[oy, ox - 1]]
-    maybe = %{left => last_left_type, right => last_type}
+
+    maybe =
+      case last_type do
+        :right_box -> %{right => last_type}
+        _ -> %{right => last_type, left => :empty}
+      end
+
     next_left = move(dir, left)
     next_right = move(dir, right)
-
-    IO.inspect({left, right, last_left_type, last_type}, label: "right box")
 
     future_left = shove(data[next_left], dir, :left_box, left, next_left)
     future_right = shove(data[next_right], dir, :right_box, right, next_right)
@@ -193,8 +203,6 @@ defmodule Solver do
     maybe = %{new_coord => last_type}
     next = move(dir, new_coord)
     future = shove(data[next], dir, new_type, new_coord, next)
-
-    IO.inspect({new_type, last_type, data[next], maybe, future}, label: "Defaulted")
 
     case future do
       {:ok, map} -> {:ok, Map.merge(map, maybe)}
@@ -222,26 +230,25 @@ defmodule Solver do
     IO.puts(p)
   end
 
-  def part2({:ok, [{data, move_list}], _, _, _, _}) do
+  def part2({:ok, [{data, move_list}], _, _, _, _}, {h, w}) do
     put_data(:data, data)
 
-    print(data, {10, 20})
+    print(data, {h, w})
 
     end_map =
       move_list
       |> Enum.reduce(data, fn dir, acc ->
-        maybe = %{move(dir, acc.robot) => :robot, acc.robot => :empty}
+        new_bot = move(dir, acc.robot)
+        maybe = %{new_bot => :robot, acc.robot => :empty, robot: new_bot}
 
         future =
           shove(
             :robot,
             dir,
-            :empty,
+            nil,
             acc.robot,
             acc.robot
           )
-
-        IO.inspect({dir, future, Map.merge(elem(future, 1), maybe)})
 
         new_data =
           case future do
@@ -252,13 +259,20 @@ defmodule Solver do
               acc
           end
 
-        print(new_data, {10, 20})
-
         put_data(
           :data,
           new_data
         )
       end)
+
+    print(end_map, {h, w})
+
+    end_map
+    |> Enum.map(fn
+      {[y, x], :left_box} -> y * 100 + x
+      _ -> 0
+    end)
+    |> Enum.sum()
   end
 end
 
@@ -268,5 +282,5 @@ test_file =
 file =
   File.read!("input.txt")
 
-IO.inspect(test_file |> Solver.parse2() |> Solver.part2(), label: "Part 2 Test")
-# IO.inspect(file |> Solver.parse2() |> Solver.part2(), label: "Part 2 Real")
+IO.inspect(test_file |> Solver.parse2() |> Solver.part2({10, 20}), label: "Part 2 Test")
+IO.inspect(file |> Solver.parse2() |> Solver.part2({50, 100}), label: "Part 2 Real")
