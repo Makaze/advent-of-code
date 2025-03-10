@@ -56,6 +56,30 @@ defmodule Solver do
     end)
   end
 
+  def map_from(data) do
+    [{moves, _} | data] = data |> Enum.with_index() |> Enum.reverse()
+
+    data =
+      data
+      |> Enum.reduce(%{}, fn {line, row}, acc ->
+        line
+        |> Enum.with_index()
+        |> Enum.reduce(acc, fn {char, col}, inner_acc ->
+          coord = [row, col]
+
+          inner_acc =
+            case char do
+              :robot -> put_in(inner_acc[:robot], coord)
+              _ -> inner_acc
+            end
+
+          put_in(inner_acc[coord], char)
+        end)
+      end)
+
+    {data, moves}
+  end
+
   def map_from2(data) do
     [{moves, _} | data] = data |> Enum.with_index() |> Enum.reverse()
 
@@ -111,6 +135,18 @@ defmodule Solver do
     |> reduce({__MODULE__, :moves_from, []})
 
   defparsec(
+    :parse,
+    repeat(
+      choice([
+        grid_row,
+        whitespace,
+        moves
+      ])
+    )
+    |> reduce({__MODULE__, :map_from, []})
+  )
+
+  defparsec(
     :parse2,
     repeat(
       choice([
@@ -146,10 +182,26 @@ defmodule Solver do
     future_right = shove(data[next_right], dir, next_right)
 
     case {future_left, future_right} do
-      {{:err, l}, {:err, r}} -> {:err, {l, r}}
-      {{:err, l}, _} -> {:err, l}
-      {_, {:err, r}} -> {:err, r}
-      {{:ok, lmap}, {:ok, rmap}} -> {:ok, Map.merge(lmap, rmap) |> Map.merge(maybe)}
+      {{:err, l}, {:err, r}} ->
+        {:err, {l, r}}
+
+      {{:err, l}, _} ->
+        {:err, l}
+
+      {_, {:err, r}} ->
+        {:err, r}
+
+      {{:ok, lmap}, {:ok, rmap}} ->
+        {:ok,
+         lmap
+         |> Map.merge(rmap, fn k, a, b ->
+           if a != b and b == :empty do
+             a
+           else
+             b
+           end
+         end)
+         |> Map.merge(maybe)}
     end
   end
 
@@ -166,10 +218,26 @@ defmodule Solver do
     future_right = shove(data[next_right], dir, next_right)
 
     case {future_left, future_right} do
-      {{:err, l}, {:err, r}} -> {:err, {l, r}}
-      {{:err, l}, _} -> {:err, l}
-      {_, {:err, r}} -> {:err, r}
-      {{:ok, lmap}, {:ok, rmap}} -> {:ok, Map.merge(lmap, rmap) |> Map.merge(maybe)}
+      {{:err, l}, {:err, r}} ->
+        {:err, {l, r}}
+
+      {{:err, l}, _} ->
+        {:err, l}
+
+      {_, {:err, r}} ->
+        {:err, r}
+
+      {{:ok, lmap}, {:ok, rmap}} ->
+        {:ok,
+         lmap
+         |> Map.merge(rmap, fn k, a, b ->
+           if a != b and b == :empty do
+             a
+           else
+             b
+           end
+         end)
+         |> Map.merge(maybe)}
     end
   end
 
@@ -213,14 +281,13 @@ defmodule Solver do
         |> Enum.join("")
       end
       |> Enum.join("\n")
-
-    IO.puts(p)
   end
 
   def part2({:ok, [{data, move_list}], _, _, _, _}, {h, w}) do
     put_data(:data, data)
 
     print(data, {h, w})
+    |> IO.puts()
 
     end_map =
       move_list
@@ -250,22 +317,18 @@ defmodule Solver do
         )
       end)
 
-    print(end_map, {h, w})
-
     end_map
     |> Enum.map(fn
       {[y, x], :left_box} -> y * 100 + x
+      {[y, x], :box} -> y * 100 + x
       _ -> 0
     end)
     |> Enum.sum()
   end
 end
 
-test_file =
-  File.read!("test.txt")
-
 file =
   File.read!("input.txt")
 
-IO.inspect(test_file |> Solver.parse2() |> Solver.part2({10, 20}), label: "Part 2 Test")
+IO.inspect(file |> Solver.parse() |> Solver.part2({50, 50}), label: "Part 1 Real")
 IO.inspect(file |> Solver.parse2() |> Solver.part2({50, 100}), label: "Part 2 Real")
