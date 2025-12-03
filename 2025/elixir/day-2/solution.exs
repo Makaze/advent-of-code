@@ -96,18 +96,27 @@ defmodule Solver do
 
   def part2({:ok, ranges, _, _, _, _}) do
     1..(10 ** (div(MaxStore.get(), 2) + 1) - 1)
-    |> Enum.map(fn n ->
+    |> Enum.reduce(MapSet.new(), fn n, seen ->
       size_n = size_int(n)
       max_reps = div(MaxStore.get(), size_n)
 
-      1..max_reps
-      |> Enum.map(fn r ->
-        gen_reps(n, r)
-        |> find_range(ranges)
-      end)
+      seen =
+        1..max_reps
+        |> Enum.map(fn r ->
+          v = gen_reps(n, r)
+
+          if v in seen do
+            0
+          else
+            v |> find_range(ranges)
+          end
+        end)
+        |> Enum.reduce(seen, fn x, acc -> MapSet.put(acc, x) end)
+
+      seen
     end)
+    |> MapSet.to_list()
     |> List.flatten()
-    |> Enum.uniq()
     |> Enum.sum()
   end
 end
