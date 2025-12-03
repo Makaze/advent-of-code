@@ -31,7 +31,7 @@ end
 
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2025/day/1
+  https://adventofcode.com/2025/day/2
   """
 
   import NimbleParsec
