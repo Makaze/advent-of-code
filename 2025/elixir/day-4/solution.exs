@@ -5,7 +5,7 @@ Mix.install([
 
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2025/day/3
+  https://adventofcode.com/2025/day/4
   """
 
   import NimbleParsec
@@ -89,7 +89,7 @@ test_file =
 file =
   File.read!("input.txt")
 
-IO.inspect(test_file |> Solver.parse() |> Solver.part1(), label: "Part 1 Test", limit: :infinity)
+IO.inspect(test_file |> Solver.parse() |> Solver.part1(), label: "Part 1 Test")
 IO.inspect(file |> Solver.parse() |> Solver.part1(), label: "Part 1 Real")
 
 IO.inspect(test_file |> Solver.parse() |> Solver.part2(), label: "Part 2 Test")
