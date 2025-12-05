@@ -18,9 +18,7 @@ defmodule Solver do
       string("@") |> replace(1)
     ])
 
-  def char_from(x) do
-    x
-  end
+  def char_from(x), do: x
 
   row =
     repeat(chars)
