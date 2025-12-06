@@ -63,10 +63,6 @@ defmodule Solver do
     )
   )
 
-  def find_range(_rep, []), do: 0
-  def find_range(rep, [{lower, upper} | _rest]) when rep >= lower and rep <= upper, do: rep
-  def find_range(rep, [_range | rest]), do: find_range(rep, rest)
-
   def reduce_range(r, []), do: [r]
 
   def reduce_range({r_start, r_end}, [{prev_start, prev_end} | rest])
@@ -83,7 +79,7 @@ defmodule Solver do
     {ranges, ints} =
       ranges
       |> Enum.split_with(fn
-        {a, b} = r -> true
+        {_a, _b} -> true
         _ -> false
       end)
 
