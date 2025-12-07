@@ -1,6 +1,5 @@
 Mix.install([
-  {:nimble_parsec, "~> 1.4"},
-  {:nx, "~> 0.10"}
+  {:nimble_parsec, "~> 1.4"}
 ])
 
 defmodule Solver do
@@ -20,8 +19,8 @@ defmodule Solver do
 
   operation =
     choice([
-      string("+") |> replace(-1),
-      string("*") |> replace(-2)
+      string("+"),
+      string("*")
     ])
 
   row =
@@ -40,7 +39,7 @@ defmodule Solver do
       choice([
         operation,
         digit,
-        whitespace |> replace(:nan)
+        whitespace |> replace(nil)
       ])
     )
     |> ignore(anything)
@@ -92,18 +91,53 @@ defmodule Solver do
     ops
     |> Enum.with_index()
     |> Enum.map(fn
-      {-1, i} -> args |> Enum.reduce(0, fn x, acc -> acc + get_in_tuple(x, i) end)
-      {-2, i} -> args |> Enum.reduce(1, fn x, acc -> acc * get_in_tuple(x, i) end)
+      {"+", i} -> args |> Enum.reduce(0, fn x, acc -> acc + get_in_tuple(x, i) end)
+      {"*", i} -> args |> Enum.reduce(1, fn x, acc -> acc * get_in_tuple(x, i) end)
     end)
     |> Enum.sum()
   end
 
   def part2({:ok, ranges, _, _, _, _}) do
-    args =
+    {args, [ops]} =
       ranges
-      |> Enum.map(&Enum.reverse/1)
+      |> Enum.split_with(fn
+        ["+" | _r] -> false
+        ["*" | _r] -> false
+        _ -> true
+      end)
 
-    args = args |> Nx.tensor() |> Nx.transpose()
+    args =
+      args
+      |> Enum.zip()
+      |> Enum.map(fn x -> x |> Tuple.to_list() |> Enum.reject(&is_nil/1) |> Integer.undigits() end)
+      |> Enum.reverse()
+      |> Enum.reject(&(&1 === 0))
+
+    ops
+    |> Enum.reduce(%{ops: [], temp: 0}, fn
+      el, acc when is_nil(el) ->
+        Map.update(acc, :temp, 0, fn x -> x + 1 end)
+
+      el, acc ->
+        acc
+        |> Map.update(:ops, [el], fn
+          [] -> [{el, acc.temp}]
+          [{last_el, _} | rest] -> [{el, acc.temp}, {last_el, acc.temp} | rest]
+        end)
+        |> Map.put(:temp, 0)
+    end)
+    |> Map.get(:ops)
+    |> Enum.map_reduce(args, fn
+      {"+", count}, rest ->
+        {a, r} = Enum.split(rest, count)
+        {a |> Enum.sum(), r}
+
+      {"*", count}, rest ->
+        {a, r} = Enum.split(rest, count)
+        {a |> Enum.product(), r}
+    end)
+    |> elem(0)
+    |> Enum.sum()
   end
 end
 
@@ -117,4 +151,4 @@ IO.inspect(test_file |> Solver.parse() |> Solver.part1(), label: "Part 1 Test")
 IO.inspect(file |> Solver.parse() |> Solver.part1(), label: "Part 1 Real")
 
 IO.inspect(test_file |> Solver.parse2() |> Solver.part2(), label: "Part 2 Test")
-# IO.inspect(file |> Solver.parse2() |> Solver.part2(), label: "Part 2 Real")
+IO.inspect(file |> Solver.parse2() |> Solver.part2(), label: "Part 2 Real")
