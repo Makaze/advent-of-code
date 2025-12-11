@@ -5,7 +5,7 @@ Mix.install([
 
 defmodule Solver do
   @moduledoc """
-  https://adventofcode.com/2025/day/8
+  https://adventofcode.com/2025/day/9
   """
 
   import NimbleParsec
@@ -114,7 +114,7 @@ defmodule Solver do
 
   def perim(%MapSet{map: m}, acc) when map_size(m) == 0, do: {acc, orientation(acc)}
 
-  def perim(points, [{x, y} | rest] = acc) do
+  def perim(points, [{x, y} | _rest] = acc) do
     neighbor =
       [
         {x, y + 1},
@@ -127,10 +127,15 @@ defmodule Solver do
     perim(points |> MapSet.delete(neighbor), [neighbor | acc])
   end
 
+  def inside?({top, left, bottom, right}, {x, y})
+      when x > left and x < right and
+             y > top and y < bottom,
+      do: true
+
+  def inside?(_rect, _point), do: false
+
   def scale({x, y}) when x < 100, do: {x * 100, y * 100}
   def scale({x, y}), do: {x |> div(100), y |> div(100)}
-
-  def box_inside?()
 
   def solve(data, count \\ 0) do
     res =
@@ -208,28 +213,18 @@ defmodule Solver do
     loop = MapSet.union(verticals, horizontals)
 
     perimeter = perim(loop, [])
-    IO.inspect(perimeter, label: "Perimeter")
 
     sketch |> Sketch.save()
 
-    found_shape = Sketch.new(width: 1100, height: 1100)
-
     res =
       res
-      |> Stream.filter(fn {_d, a, b} ->
+      |> Enum.find(fn {_d, a, b} ->
         {v_range, h_range, corners, top, left, bottom, right} = rect_from(a, b)
 
-        verticals = verticals |> MapSet.difference(corners)
-        horizontals = horizontals |> MapSet.difference(corners)
-
-        crosses = [
-          fn -> crosses?({1, 0}, verticals, {left + 1, top}, {right - 1, top}) end,
-          fn -> crosses?({1, 0}, verticals, {left + 1, bottom}, {right - 1, bottom}) end,
-          fn -> crosses?({0, 1}, horizontals, {left, top + 1}, {left, bottom - 1}) end,
-          fn -> crosses?({0, 1}, horizontals, {right, top + 1}, {right, bottom - 1}) end
-        ]
-
-        v = not Enum.any?(crosses, & &1.())
+        v =
+          not (perimeter
+               |> elem(0)
+               |> Enum.any?(fn p -> inside?({top, left, bottom, right}, p) end))
 
         if v do
           sketch
@@ -243,9 +238,7 @@ defmodule Solver do
 
         v
       end)
-      |> Enum.take(3)
-
-    # |> elem(0)
+      |> elem(0)
   end
 
   def run() do
