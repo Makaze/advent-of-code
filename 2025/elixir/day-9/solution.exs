@@ -131,11 +131,11 @@ defmodule Solver do
   def part2({:ok, data, _, _, _, _}) do
     res = solve(data)
 
-    {horizontals, verticals, sketch} =
+    {points, sketch} =
       res
       |> Enum.reduce(
-        {MapSet.new(), MapSet.new(), Sketch.new(width: 1100, height: 1100)},
-        fn {_d, {ax, ay}, {bx, by}}, {horizontals, verticals, sketch} = acc ->
+        {[], Sketch.new(width: 1100, height: 1100)},
+        fn {_d, {ax, ay}, {bx, by}}, {points, sketch} = acc ->
           case {abs(ax - bx), abs(ay - by)} do
             {0, _} ->
               [n, x] = [ay, by] |> Enum.sort()
@@ -147,13 +147,13 @@ defmodule Solver do
                   finish: scale({ax, x})
                 })
 
-              verticals =
+              points =
                 n..x
-                |> Enum.reduce(verticals, fn y_val, inner_acc ->
-                  inner_acc |> MapSet.put({ax, y_val})
+                |> Enum.reduce(points, fn y_val, inner_acc ->
+                  [{ax, y_val} | inner_acc]
                 end)
 
-              {horizontals, verticals, sketch}
+              {points, sketch}
 
             {_, 0} ->
               [n, x] = [ax, bx] |> Enum.sort()
@@ -165,23 +165,19 @@ defmodule Solver do
                   finish: scale({x, ay})
                 })
 
-              horizontals =
+              points =
                 n..x
-                |> Enum.reduce(horizontals, fn x_val, inner_acc ->
-                  inner_acc |> MapSet.put({x_val, ay})
+                |> Enum.reduce(points, fn x_val, inner_acc ->
+                  [{x_val, ay} | inner_acc]
                 end)
 
-              {horizontals, verticals, sketch}
+              {points, sketch}
 
             _ ->
               acc
           end
         end
       )
-
-    loop = MapSet.union(verticals, horizontals)
-
-    perimeter = perim(loop, [])
 
     sketch |> Sketch.save()
 
@@ -191,8 +187,7 @@ defmodule Solver do
         {top, left, bottom, right} = rect_from(a, b)
 
         v =
-          not (perimeter
-               |> elem(0)
+          not (points
                |> Enum.any?(fn p -> inside?({top, left, bottom, right}, p) end))
 
         if v do
