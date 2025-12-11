@@ -30,10 +30,6 @@ defmodule Solver do
     )
   )
 
-  def euclid_dist(a \\ [], b \\ [], result \\ 0)
-  def euclid_dist([], _, result), do: :math.sqrt(result)
-  def euclid_dist([d_a | a], [d_b | b], result), do: euclid_dist(a, b, result + (d_a - d_b) ** 2)
-
   def area({ax, ay}, {bx, by}), do: (abs(ax - bx) + 1) * (abs(ay - by) + 1)
 
   def push_in(t, p, v), do: update_in(t, p, fn _ -> v end)
@@ -52,34 +48,7 @@ defmodule Solver do
     [top, bottom] = [ay, by] |> Enum.sort()
     [left, right] = [ax, bx] |> Enum.sort()
 
-    horizontals =
-      (left + 1)..(right - 1)
-
-    # |> Enum.reduce(MapSet.new(), fn x, acc ->
-    #   acc
-    #   |> MapSet.put({x, top})
-    #   |> MapSet.put({x, bottom}) end)
-    verticals =
-      (top + 1)..(bottom - 1)
-
-    # |> Enum.reduce(MapSet.new(), fn y, acc ->
-    #   acc
-    #   |> MapSet.put({left, y})
-    #   |> MapSet.put({right, y})
-    # end)
-    corners = MapSet.new([{left, top}, {right, top}, {left, bottom}, {right, bottom}])
-
-    {verticals, horizontals, corners, top, left, bottom, right}
-  end
-
-  def crosses?(_move, s, point, last) when point == last, do: MapSet.member?(s, point)
-
-  def crosses?({x, y} = move, s, {px, py} = point, last) do
-    if MapSet.member?(s, point) do
-      true
-    else
-      crosses?(move, s, {px + x, py + y}, last)
-    end
+    {top, left, bottom, right}
   end
 
   def orientation({ax, ay}, {bx, by}, {cx, cy}) do
@@ -219,7 +188,7 @@ defmodule Solver do
     res =
       res
       |> Enum.find(fn {_d, a, b} ->
-        {v_range, h_range, corners, top, left, bottom, right} = rect_from(a, b)
+        {top, left, bottom, right} = rect_from(a, b)
 
         v =
           not (perimeter
