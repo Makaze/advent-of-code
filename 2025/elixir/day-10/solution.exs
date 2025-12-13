@@ -2,6 +2,131 @@ Mix.install([
   {:nimble_parsec, "~> 1.4"}
 ])
 
+defmodule DiagramNode do
+  defstruct state: nil, action: nil, parent: nil
+
+  def bfs(start, goal?, neighbors) do
+    if goal?.(start) do
+      %DiagramNode{state: start}
+    else
+      start = %DiagramNode{state: start}
+      bfs(:queue.in(start, :queue.new()), goal?, MapSet.new([]), nil, neighbors)
+    end
+  end
+
+  def bfs(queue, goal?, explored, prev, neighbors) do
+    case :queue.out(queue) do
+      {:empty, _} ->
+        explored
+
+      {{:value, node}, queue} ->
+        if goal?.(node.state) do
+          node
+        else
+          nexts = neighbors.(node)
+
+          found = nexts |> Enum.find(fn x -> goal?.(x) end)
+
+          if found do
+            found
+          else
+            {queue, explored} =
+              nexts
+              |> Enum.reduce({queue, explored}, fn neighbor, {q, e} = acc ->
+                if MapSet.member?(e, neighbor.state) do
+                  acc
+                else
+                  q = :queue.in(neighbor, q)
+                  e = MapSet.put(e, neighbor.state)
+                  {q, e}
+                end
+              end)
+
+            bfs(queue, goal?, explored, node, neighbors)
+          end
+        end
+    end
+  end
+
+  def path_size(%DiagramNode{parent: nil}), do: 0
+  def path_size(%DiagramNode{parent: p}), do: path_size(p, 1)
+  def path_size(%DiagramNode{parent: nil}, size), do: size
+  def path_size(%DiagramNode{parent: p}, size), do: path_size(p, size + 1)
+end
+
+defmodule Diagram do
+  defstruct goal: %{}, state: %{}, buttons: [], joltages: %{}
+
+  def toggle_button(%Diagram{state: s, buttons: b} = d, button_id) do
+    button = b |> Enum.at(button_id)
+
+    new_state =
+      button
+      |> Enum.reduce(s, fn light, acc ->
+        acc |> Map.update(light, true, &(not &1))
+      end)
+
+    %Diagram{d | state: new_state}
+  end
+
+  def incr_button(%Diagram{state: s, buttons: b} = d, button_id) do
+    button = b |> Enum.at(button_id)
+
+    new_state =
+      button
+      |> Enum.reduce(s, fn joltage, acc ->
+        acc
+        |> Map.update(joltage, 1, fn x ->
+          if is_integer(x) do
+            x + 1
+          else
+            1
+          end
+        end)
+      end)
+
+    %Diagram{d | state: new_state}
+  end
+
+  def reset(%Diagram{goal: g} = d), do: %Diagram{d | state: Map.from_keys(g |> Map.keys(), false)}
+  def empty(%Diagram{joltages: g} = d), do: %Diagram{d | state: Map.from_keys(g |> Map.keys(), 0)}
+
+  def is_joltage?(%Diagram{state: s, joltages: j}) when s == j, do: true
+  def is_joltage?(_), do: false
+
+  def is_lit?(%Diagram{state: s, goal: g}) when s == g, do: true
+  def is_lit?(_), do: false
+
+  def light_neighbors(%DiagramNode{state: %Diagram{buttons: b} = d} = n) do
+    0..(length(b) - 1)
+    |> Enum.map(fn id ->
+      %DiagramNode{
+        state: d |> Diagram.toggle_button(id),
+        action: id,
+        parent: n
+      }
+    end)
+  end
+
+  def jolt_neighbors(%DiagramNode{state: %Diagram{buttons: b, joltages: j} = d} = n) do
+    0..(length(b) - 1)
+    |> Enum.map(fn id ->
+      %Diagram{state: new_j} = increased = d |> Diagram.incr_button(id)
+
+      if Enum.any?(new_j, fn {k, v} -> v > Map.get(j, k) end) do
+        nil
+      else
+        %DiagramNode{
+          state: increased,
+          action: id,
+          parent: n
+        }
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+end
+
 defmodule Solver do
   @moduledoc """
   https://adventofcode.com/2025/day/10
@@ -9,15 +134,65 @@ defmodule Solver do
 
   import NimbleParsec
 
-  def point_from(x), do: List.to_tuple(x)
+  def list_from(x), do: x
+  def state_from(x), do: x |> Enum.with_index() |> Enum.into(%{}, fn {v, k} -> {k, v} end)
+
+  def diagram_from([state, buttons, joltage | _rest]) do
+    %Diagram{
+      goal: state,
+      state: state,
+      buttons: buttons,
+      joltages: joltage
+    }
+  end
 
   anything = ignore(utf8_char([]))
+  whitespace = ignore(utf8_char([?\s, ?\t]))
+
+  diagram =
+    ignore(string("["))
+    |> repeat(
+      choice([
+        string(".") |> replace(false),
+        string("#") |> replace(true)
+      ])
+    )
+    |> ignore(string("]"))
+    |> ignore(whitespace)
+    |> reduce({__MODULE__, :state_from, []})
+
+  button =
+    ignore(string("("))
+    |> repeat(
+      choice([
+        integer(min: 1),
+        ignore(string(","))
+      ])
+    )
+    |> ignore(string(")"))
+    |> ignore(whitespace)
+    |> reduce({__MODULE__, :list_from, []})
+
+  buttons =
+    repeat(button)
+    |> reduce({__MODULE__, :list_from, []})
+
+  joltage =
+    ignore(string("{"))
+    |> repeat(
+      choice([
+        integer(min: 1),
+        ignore(string(","))
+      ])
+    )
+    |> ignore(string("}"))
+    |> reduce({__MODULE__, :state_from, []})
 
   row =
-    integer(min: 1)
-    |> ignore(string(","))
-    |> integer(min: 1)
-    |> reduce({__MODULE__, :point_from, []})
+    diagram
+    |> concat(buttons)
+    |> concat(joltage)
+    |> reduce({__MODULE__, :diagram_from, []})
 
   defparsec(
     :parse,
@@ -29,41 +204,27 @@ defmodule Solver do
     )
   )
 
-  def bfs(start, neighbors), do: bfs(:queue.new(), MapSet.new([start]), neighbors)
-
-  def bfs(queue, explored, neighbors) do
-    case :queue.out(queue) do
-      {:empty, _} ->
-        explored
-
-      {{:value, node}, queue} ->
-        {queue, explored} =
-          neighbors.(node)
-          |> Enum.reduce({queue, explored}, fn n, {q, e} = acc ->
-            if MapSet.member?(acc, n) do
-              acc
-            else
-              q = :queue.in(n, q)
-              e = MapSet.put(e, n)
-              {q, e}
-            end
-          end)
-
-        bfs(queue, explored, neighbors)
-    end
-
-    bfs(:queue.new(), MapSet.new([start]), f)
-  end
-
   def push_in(t, p, v), do: update_in(t, p, fn _ -> v end)
 
   def solve(data) do
   end
 
-  def part1({:ok, data, _, _, _, _}, count) do
+  def part1({:ok, data, _, _, _, _}) do
+    data
+    |> Enum.map(fn d ->
+      r = DiagramNode.bfs(Diagram.reset(d), &Diagram.is_lit?/1, &Diagram.light_neighbors/1)
+      r |> DiagramNode.path_size()
+    end)
+    |> Enum.sum()
   end
 
   def part2({:ok, data, _, _, _, _}) do
+    data
+    |> Enum.map(fn d ->
+      r = DiagramNode.bfs(Diagram.empty(d), &Diagram.is_joltage?/1, &Diagram.jolt_neighbors/1)
+      r |> DiagramNode.path_size()
+    end)
+    |> Enum.sum()
   end
 
   def run() do
