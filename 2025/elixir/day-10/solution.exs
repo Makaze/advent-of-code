@@ -55,6 +55,11 @@ defmodule DiagramNode do
 end
 
 defmodule Diagram do
+  @typedoc """
+  A diagram for AoC Day 10 2025.
+  """
+  @type diagram() :: Map.t()
+
   defstruct goal: %{}, state: %{}, buttons: [], joltages: %{}
 
   def toggle_button(%Diagram{state: s, buttons: b} = d, button_id) do
@@ -124,6 +129,42 @@ defmodule Diagram do
       end
     end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  @doc """
+  Returns the list of joltages and the indexes buttons that increment them, sorted by the number of buttons affecting that index and the amount of joltage required.
+
+  This represents an equation of the form:
+  coefficient of button 0 + coefficient of button 1 ... + button n = joltage needed
+  Returns:
+    iex> [{joltage_index, [button1, ...], joltage_required}, ...]
+  """
+  @spec constraints(diagram()) :: list({integer(), list(integer()), integer()})
+  def constraints(%Diagram{buttons: buttons} = d) do
+    m = 0..(map_size(d.joltages) - 1) |> Range.to_list() |> Map.from_keys([])
+
+    {m, touches} =
+      buttons
+      |> Enum.with_index()
+      |> Enum.reduce({m, m}, fn {el, index}, {m_acc, touches_acc} ->
+        el
+        |> Enum.reduce({m_acc, touches_acc}, fn i, {m_inner_acc, touches_inner_acc} ->
+          {Map.update(m_inner_acc, i, [], &[index | &1]),
+           Map.update(touches_inner_acc, index, [], &[i | &1])}
+        end)
+      end)
+
+    # m
+    # |> Enum.map(fn {k, v} ->
+    #   {k,
+    #    v
+    #    |> Enum.sort(fn a, b ->
+    #      length(Enum.at(buttons, a)) > length(Enum.at(buttons, b))
+    #    end), Map.get(d.joltages, k)}
+    # end)
+    # |> Enum.sort(fn a, b ->
+    #   length(elem(a, 1)) <= length(elem(b, 1)) and elem(a, 2) <= elem(b, 2)
+    # end)
   end
 end
 
@@ -221,29 +262,26 @@ defmodule Solver do
   def part2({:ok, data, _, _, _, _}) do
     data
     |> Enum.map(fn d ->
-      r = DiagramNode.bfs(Diagram.empty(d), &Diagram.is_joltage?/1, &Diagram.jolt_neighbors/1)
-      r |> DiagramNode.path_size()
+      Diagram.constraints(d)
     end)
-    |> Enum.sum()
   end
 
   def run() do
     test_file = File.read!("test.txt") |> Solver.parse()
 
     test_part1 = test_file |> Solver.part1()
-
-    file = File.read!("input.txt") |> Solver.parse()
-
-    real_part1 = file |> Solver.part1()
-
     IO.inspect(test_part1, label: "Part 1 Test")
-    IO.inspect(real_part1, label: "Part 1 Real")
 
     test_part2 = test_file |> Solver.part2()
-    real_part2 = file |> Solver.part2()
-
     IO.inspect(test_part2, label: "Part 2 Test")
-    IO.inspect(real_part2, label: "Part 2 Real")
+
+    # file = File.read!("input.txt") |> Solver.parse()
+    #
+    # real_part1 = file |> Solver.part1()
+    # IO.inspect(real_part1, label: "Part 1 Real")
+    #
+    # real_part2 = file |> Solver.part2()
+    # IO.inspect(real_part2, label: "Part 2 Real")
   end
 
   def t() do
