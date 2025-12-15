@@ -10,11 +10,11 @@ defmodule DiagramNode do
       %DiagramNode{state: start}
     else
       start = %DiagramNode{state: start}
-      bfs(:queue.in(start, :queue.new()), goal?, MapSet.new([]), nil, neighbors)
+      bfs(:queue.in(start, :queue.new()), goal?, MapSet.new([]), neighbors)
     end
   end
 
-  def bfs(queue, goal?, explored, prev, neighbors) do
+  def bfs(queue, goal?, explored, neighbors) do
     case :queue.out(queue) do
       {:empty, _} ->
         explored
@@ -42,7 +42,7 @@ defmodule DiagramNode do
                 end
               end)
 
-            bfs(queue, goal?, explored, node, neighbors)
+            bfs(queue, goal?, explored, neighbors)
           end
         end
     end
@@ -60,7 +60,7 @@ defmodule Diagram do
   """
   @type diagram() :: Map.t()
 
-  defstruct goal: %{}, state: %{}, buttons: [], joltages: %{}
+  defstruct goal: %{}, state: %{}, buttons: [], joltages: %{}, assigned: %{}, maxes: %{}
 
   def toggle_button(%Diagram{state: s, buttons: b} = d, button_id) do
     button = b |> Enum.at(button_id)
@@ -95,6 +95,17 @@ defmodule Diagram do
 
   def reset(%Diagram{goal: g} = d), do: %Diagram{d | state: Map.from_keys(g |> Map.keys(), false)}
   def empty(%Diagram{joltages: g} = d), do: %Diagram{d | state: Map.from_keys(g |> Map.keys(), 0)}
+
+  def charge(%Diagram{joltages: g, buttons: b} = d) do
+    %Diagram{
+      d
+      | state: g,
+        assigned:
+          for i <- 0..(length(b) - 1), into: %{} do
+            {i, nil}
+          end
+    }
+  end
 
   def is_joltage?(%Diagram{state: s, joltages: j}) when s == j, do: true
   def is_joltage?(_), do: false
@@ -139,32 +150,85 @@ defmodule Diagram do
   Returns:
     iex> [{joltage_index, [button1, ...], joltage_required}, ...]
   """
-  @spec constraints(diagram()) :: list({integer(), list(integer()), integer()})
-  def constraints(%Diagram{buttons: buttons} = d) do
-    m = 0..(map_size(d.joltages) - 1) |> Range.to_list() |> Map.from_keys([])
-
-    {m, touches} =
+  def constrain(%Diagram{buttons: buttons, assigned: a} = d) do
+    m =
       buttons
       |> Enum.with_index()
-      |> Enum.reduce({m, m}, fn {el, index}, {m_acc, touches_acc} ->
-        el
-        |> Enum.reduce({m_acc, touches_acc}, fn i, {m_inner_acc, touches_inner_acc} ->
-          {Map.update(m_inner_acc, i, [], &[index | &1]),
-           Map.update(touches_inner_acc, index, [], &[i | &1])}
+      |> Enum.filter(fn {_, i} ->
+        ax = Map.get(a, i)
+        is_nil(ax) or ax < 1
+      end)
+
+    maxes =
+      Enum.reduce(m, %{}, fn {v, k}, acc ->
+        v
+        |> Enum.reduce(acc, fn i, inner_acc ->
+          j = Map.get(d.state, i)
+          Map.update(inner_acc, k, j, fn old -> min(old, j) end)
         end)
       end)
 
-    # m
-    # |> Enum.map(fn {k, v} ->
-    #   {k,
-    #    v
-    #    |> Enum.sort(fn a, b ->
-    #      length(Enum.at(buttons, a)) > length(Enum.at(buttons, b))
-    #    end), Map.get(d.joltages, k)}
-    # end)
-    # |> Enum.sort(fn a, b ->
-    #   length(elem(a, 1)) <= length(elem(b, 1)) and elem(a, 2) <= elem(b, 2)
-    # end)
+    d =
+      maxes
+      |> Enum.reduce(d, fn {k, v}, acc ->
+        %Diagram{acc | maxes: Map.put(acc.maxes, k, v)}
+      end)
+
+    m =
+      m
+      |> Enum.reduce(%{}, fn {el, index}, m_acc ->
+        el
+        |> Enum.reduce(m_acc, fn i, m_inner_acc ->
+          Map.update(m_inner_acc, i, [index], &[index | &1])
+        end)
+      end)
+
+    ranks = ranks(m)
+
+    m =
+      m
+      |> Enum.map(fn {k, v} ->
+        {k, v |> Enum.sort_by(fn x -> {Map.get(ranks, x), -Map.get(maxes, x)} end),
+         Map.get(d.state, k), length(v)}
+      end)
+      |> Enum.sort_by(fn {_i, _c, j, l} -> {l, j} end)
+      |> Enum.map(fn {i, c, j, _l} -> {i, c, j} end)
+
+    {d, m}
+  end
+
+  def ranks(m) do
+    m
+    |> Enum.reduce(%{}, fn {_k, v}, m_acc ->
+      lv = length(v)
+
+      v
+      |> Enum.reduce(m_acc, fn i, m_inner_acc ->
+        m_inner_acc |> Map.update(i, lv, fn old -> min(old, lv) end)
+      end)
+    end)
+  end
+
+  def force(%Diagram{} = d) do
+    {d, constraints} = constrain(d)
+
+    case hd(constraints) do
+      {_c, [best_var], value} -> assign(d, best_var, value) |> force()
+      {_c, [best_var, _b], value} -> assign(d, best_var, value)
+      _ -> d
+    end
+  end
+
+  def assign(%Diagram{buttons: b, state: s, joltages: j, assigned: a} = d, button_id, value) do
+    new_state =
+      b
+      |> Enum.at(button_id)
+      |> Enum.reduce(s, fn joltage, acc ->
+        acc
+        |> Map.update(joltage, Map.get(j, joltage), fn x -> x - value end)
+      end)
+
+    %Diagram{d | state: new_state, assigned: Map.put(a, button_id, value)}
   end
 end
 
@@ -262,7 +326,10 @@ defmodule Solver do
   def part2({:ok, data, _, _, _, _}) do
     data
     |> Enum.map(fn d ->
-      Diagram.constraints(d)
+      d
+      |> Diagram.charge()
+      |> Diagram.force()
+      |> Diagram.constrain()
     end)
   end
 
