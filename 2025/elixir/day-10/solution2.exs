@@ -164,9 +164,11 @@ defmodule Solver do
         |> Diagram.charge()
         |> Diagram.constrain()
 
-      File.write!("model#{i}.lp", s)
+      File.mkdir("models/")
+      File.write!("models/model#{i}.lp", s)
 
-      {res, status} = System.shell("highs model#{i}.lp | grep objective | awk '{print $1}'")
+      {res, status} =
+        System.shell("highs models/model#{i}.lp | grep objective | awk '{print $1}'")
 
       {d, c, res |> String.trim() |> String.to_integer(), status}
       res |> String.trim() |> String.to_integer()
