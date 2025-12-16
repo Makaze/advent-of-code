@@ -170,7 +170,7 @@ defmodule Solver do
       {res, status} =
         System.shell("highs models/model#{i}.lp | grep objective | awk '{print $1}'")
 
-      {d, c, res |> String.trim() |> String.to_integer(), status}
+      # {d, c, res |> String.trim() |> String.to_integer(), status}
       res |> String.trim() |> String.to_integer()
     end)
     |> Enum.sum()
