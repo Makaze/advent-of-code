@@ -67,8 +67,29 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-function animate() {
+// function animate() {
+//     requestAnimationFrame(animate);
+//     renderer.render(scene, camera);
+// }
+// animate();
+
+const segmentsCount = positions.length / 6; // 6 floats per segment (2 verts * 3)
+let shown = 0;
+
+const segmentsPerSecond = 100; // adjust speed
+let lastT = performance.now();
+
+function animate(t) {
     requestAnimationFrame(animate);
+
+    const dt = (t - lastT) / 1000;
+    lastT = t;
+
+    shown = Math.min(segmentsCount, shown + segmentsPerSecond * dt);
+
+    const vertsToDraw = Math.floor(shown) * 2; // 2 vertices per segment
+    geometry.setDrawRange(0, vertsToDraw);
+
     renderer.render(scene, camera);
 }
-animate();
+requestAnimationFrame(animate);
