@@ -1,6 +1,62 @@
 Mix.install([
-  {:nimble_parsec, "~> 1.4"}
+  {:nimble_parsec, "~> 1.4"},
+  {:sketch, git: "https://github.com/sannek/sketch.git", branch: "main"},
+  {:jason, "~> 1.4"}
 ])
+
+defmodule Projector do
+  @type vec3 :: {number(), number(), number()}
+  @type vec2 :: {number(), number()}
+
+  @spec move_camera(vec3(), vec3()) :: vec3()
+  def move_camera({x, y, z}, {cx, cy, cz}), do: {x - cx, y - cy, z - cz}
+
+  @spec apply_perspective(vec3(), number()) :: vec2()
+  def apply_perspective({x, y, z}, f \\ 1), do: {f * x / z, f * y / z}
+
+  @spec project(vec3(), vec3(), number()) :: vec2()
+  def project({_x, _y, _z} = point, cam_pos, f \\ 1) do
+    point
+    |> move_camera(cam_pos)
+    |> apply_perspective(f)
+  end
+end
+
+defmodule Svg do
+  @type pt :: {number(), number()}
+  @type seg :: {pt, pt}
+
+  def render(lines, opts \\ []) do
+    w = Keyword.get(opts, :width, 800)
+    h = Keyword.get(opts, :height, 600)
+    stroke = Keyword.get(opts, :stroke, "black")
+    stroke_width = Keyword.get(opts, :stroke_width, 1)
+    cam_pos = Keyword.get(opts, :cam_pos, {0, 0, 0})
+
+    body =
+      lines
+      |> Enum.map(fn {_dist, a, b} ->
+        {x1, y1} = Projector.project(a, cam_pos) |> Solver.scale()
+        {x2, y2} = Projector.project(b, cam_pos) |> Solver.scale()
+
+        ~s(<line x1="#{format(x1)}" y1="#{format(y1)}" x2="#{format(x2)}" y2="#{format(y2)}" stroke="#{stroke}" stroke-width="#{stroke_width}" />)
+      end)
+      |> Enum.join("\n  ")
+
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="#{w}" height="#{h}" viewBox="0 0 #{w} #{h}">
+      #{body}
+    </svg>
+    """
+  end
+
+  def write!(lines, path, opts \\ []) do
+    File.write!(path, render(lines, opts))
+  end
+
+  defp format(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 3)
+  defp format(n), do: to_string(n)
+end
 
 defmodule Solver do
   @moduledoc """
@@ -30,6 +86,9 @@ defmodule Solver do
       ])
     )
   )
+
+  def scale({x, y}) when x < 1000, do: {x * 100, y * 100}
+  def scale({x, y}), do: {round(x) |> div(100), round(y) |> div(100)}
 
   def euclid_dist(a \\ [], b \\ [], result \\ 0)
   def euclid_dist([], _, result), do: :math.sqrt(result)
@@ -96,6 +155,36 @@ defmodule Solver do
     end
   end
 
+  def draw(data) do
+    data
+    |> Enum.reduce(
+      {Sketch.new(width: 10_000, height: 10_000, background: {255, 255, 255}), 1},
+      fn
+        {_dist, a, b}, {s, i} ->
+          cam_pos = {0, 0, 0}
+          proj_a = Projector.project(a, cam_pos)
+          proj_b = Projector.project(b, cam_pos)
+
+          s =
+            s
+            |> Sketch.line(%{
+              start: scale(proj_a),
+              finish: scale(proj_b)
+            })
+
+          i = i + 1
+
+          if rem(i, 100) == 0 do
+            s |> Sketch.save()
+          end
+
+          {s, i}
+      end
+    )
+    |> elem(0)
+    |> Sketch.save()
+  end
+
   def solve(data, count \\ 0) do
     res =
       data
@@ -140,15 +229,38 @@ defmodule Solver do
     circuits =
       data
       |> Enum.with_index()
-      |> Enum.reduce(%{last_val: 0, circuits: %{}}, fn {el, i}, acc ->
-        acc
-        |> Map.put(el, i)
-        |> push_in([:circuits, i], %{el => true})
-      end)
+      |> Enum.reduce(
+        %{last_val: 0, circuits: %{}},
+        fn {el, i}, acc ->
+          acc
+          |> Map.put(el, i)
+          |> push_in([:circuits, i], %{el => true})
+        end
+      )
+
+    data =
+      data
+      |> solve()
+
+    s =
+      data
+      |> Stream.map(fn {_dist, a, b} -> [a, b] |> Enum.map(&Tuple.to_list/1) end)
+      |> Enum.take(10000)
+      |> Jason.encode!()
+
+    File.write!("viewer/list.json", s)
+
+    # |> Svg.write!("output.svg",
+    #   width: 10_000,
+    #   height: 10_000,
+    #   stroke_width: 3,
+    #   cam_pos: {15_000, 0, 0}
+    # )
+
+    # |> draw()
 
     {{xa, _ya, _za}, {xb, _yb, _zb}} =
       data
-      |> solve()
       |> Enum.reduce_while(circuits, fn {_dist, a, b}, v ->
         v = connect(a, b, v)
 
@@ -167,16 +279,16 @@ test_file =
   File.read!("test.txt") |> Solver.parse()
 
 test_part1 = test_file |> Solver.part1(10)
+IO.inspect(test_part1, label: "Part 1 Test")
+
 test_part2 = test_file |> Solver.part2()
+IO.inspect(test_part2, label: "Part 2 Test")
 
 file =
   File.read!("input.txt") |> Solver.parse()
 
 real_part1 = file |> Solver.part1(1000)
-real_part2 = file |> Solver.part2()
-
-IO.inspect(test_part1, label: "Part 1 Test")
 IO.inspect(real_part1, label: "Part 1 Real")
 
-IO.inspect(test_part2, label: "Part 2 Test")
+real_part2 = file |> Solver.part2()
 IO.inspect(real_part2, label: "Part 2 Real")
